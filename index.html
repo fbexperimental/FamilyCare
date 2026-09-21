@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareSync - Real-Time Family Health Tracker</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js for Vitals Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            800: '#1e40af',
+                            900: '#1e3a8a'
+                        },
+                        kidney: {
+                            50: '#fff7ed',
+                            600: '#ea580c',
+                            900: '#7c2d12'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .senior-btn {
+            min-height: 52px;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="text-slate-900 pb-20 md:pb-8">
+
+    <!-- App Header Bar -->
+    <header class="bg-brand-900 text-white sticky top-0 z-40 shadow-lg">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-xl text-red-400">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-black tracking-tight leading-none">CareSync</h1>
+                        <span id="liveBadge" class="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-400/30 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span> Live Sync
+                        </span>
+                    </div>
+                    <p class="text-xs text-blue-200 mt-0.5">Patient: <strong class="text-white">Mr. Manu Kumar Jha</strong> (62Y)</p>
+                </div>
+            </div>
+
+            <!-- Room Code Switcher -->
+            <button onclick="openRoomModal()" class="flex items-center space-x-2 bg-brand-800 hover:bg-blue-700 px-3 py-1.5 rounded-xl border border-blue-400/30 text-xs transition shadow-sm">
+                <i class="fa-solid fa-users text-blue-300"></i>
+                <div class="text-left">
+                    <span class="text-[9px] text-blue-300 block uppercase font-bold tracking-wider">Family Room</span>
+                    <span id="roomCodeDisplay" class="font-mono font-black text-white text-xs">JHA-FAMILY</span>
+                </div>
+                <i class="fa-solid fa-pen-to-square text-xs text-blue-300 ml-1"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Solitary Kidney & Post-Stroke Caution Banner -->
+    <div class="bg-amber-50 border-b border-amber-200 px-4 py-2.5 shadow-inner">
+        <div class="max-w-4xl mx-auto flex items-start space-x-3">
+            <i class="fa-solid fa-triangle-exclamation text-amber-600 text-lg mt-0.5 flex-shrink-0"></i>
+            <div class="text-xs sm:text-sm text-amber-900 leading-snug">
+                <span class="font-bold text-amber-950 uppercase tracking-wide">⚠️ Solitary Kidney Care Alert:</span>
+                CKD Stage 3 (Baseline Creatinine 1.4 mg/dL). <strong class="text-red-700 underline">STRICTLY NO NSAIDs</strong> (Ibuprofen, Diclofenac). Use <em>T. Calpol-T</em> only on SOS basis as prescribed by Dr. Dhiraj.
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="max-w-4xl mx-auto px-4 py-4">
+
+        <!-- Navigation Tabs -->
+        <div class="grid grid-cols-4 gap-1.5 bg-slate-200 p-1.5 rounded-2xl mb-5 shadow-inner">
+            <button id="tabBtnMeds" onclick="switchTab('meds')" class="py-2.5 px-1 rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 bg-white text-brand-900 shadow-sm transition">
+                <i class="fa-solid fa-pills text-base"></i>
+                <span>Medicines</span>
+            </button>
+            <button id="tabBtnVitals" onclick="switchTab('vitals')" class="py-2.5 px-1 rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 text-slate-600 hover:text-brand-900 transition">
+                <i class="fa-solid fa-heart-pulse text-base"></i>
+                <span>Vitals & Graph</span>
+            </button>
+            <button id="tabBtnHistory" onclick="switchTab('history')" class="py-2.5 px-1 rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 text-slate-600 hover:text-brand-900 transition">
+                <i class="fa-solid fa-clock-rotate-left text-base"></i>
+                <span>History</span>
+            </button>
+            <button id="tabBtnDoctors" onclick="switchTab('doctors')" class="py-2.5 px-1 rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 text-slate-600 hover:text-brand-900 transition">
+                <i class="fa-solid fa-user-doctor text-base"></i>
+                <span>Doctors</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: MEDICATIONS CHECKLIST -->
+        <section id="tabMeds" class="space-y-5">
+            <!-- Date & Daily Progress Card -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg font-black text-slate-900" id="currentDateDisplay">Today's Prescriptions</h2>
+                        <span class="bg-slate-100 text-slate-600 text-[11px] font-bold px-2.5 py-0.5 rounded-full" id="dateSubtext">Daily Reset</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">Checked off items sync instantly across all family devices.</p>
+                </div>
+                
+                <!-- Daily Progress Ring/Badge -->
+                <div class="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 bg-blue-50 px-4 py-2.5 rounded-xl border border-blue-100">
+                    <span class="text-xs font-bold text-blue-900">Today's Progress:</span>
+                    <span id="medCompletionBadge" class="text-sm font-black bg-brand-900 text-white px-3 py-1 rounded-full shadow-sm">
+                        0 / 11 Taken
+                    </span>
+                </div>
+            </div>
+
+            <!-- Morning Meds -->
+            <div class="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3 border-b border-amber-200/80 pb-2">
+                    <div class="flex items-center space-x-2 text-amber-950 font-black text-base">
+                        <i class="fa-solid fa-sun text-amber-500 text-lg"></i>
+                        <span>Morning Schedule (8:00 AM - 9:00 AM)</span>
+                    </div>
+                    <span class="text-xs font-bold bg-amber-200/80 text-amber-900 px-2.5 py-0.5 rounded-full">4 Medicines</span>
+                </div>
+                <div class="space-y-2.5" id="listMorning">
+                    <!-- Morning items injected via JS -->
+                </div>
+            </div>
+
+            <!-- Afternoon Meds -->
+            <div class="bg-sky-50/70 border border-sky-200 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3 border-b border-sky-200/80 pb-2">
+                    <div class="flex items-center space-x-2 text-sky-950 font-black text-base">
+                        <i class="fa-solid fa-cloud-sun text-sky-500 text-lg"></i>
+                        <span>Afternoon Schedule (1:00 PM - 2:00 PM)</span>
+                    </div>
+                    <span class="text-xs font-bold bg-sky-200/80 text-sky-900 px-2.5 py-0.5 rounded-full">2 Medicines</span>
+                </div>
+                <div class="space-y-2.5" id="listAfternoon">
+                    <!-- Afternoon items injected via JS -->
+                </div>
+            </div>
+
+            <!-- Evening / Night Meds -->
+            <div class="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3 border-b border-indigo-200/80 pb-2">
+                    <div class="flex items-center space-x-2 text-indigo-950 font-black text-base">
+                        <i class="fa-solid fa-moon text-indigo-500 text-lg"></i>
+                        <span>Night Schedule (8:00 PM - 9:00 PM)</span>
+                    </div>
+                    <span class="text-xs font-bold bg-indigo-200/80 text-indigo-900 px-2.5 py-0.5 rounded-full">5 Medicines</span>
+                </div>
+                <div class="space-y-2.5" id="listEvening">
+                    <!-- Evening items injected via JS -->
+                </div>
+            </div>
+
+            <!-- SOS / As Needed -->
+            <div class="bg-rose-50/70 border border-rose-200 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3 border-b border-rose-200/80 pb-2">
+                    <div class="flex items-center space-x-2 text-rose-950 font-black text-base">
+                        <i class="fa-solid fa-kit-medical text-rose-500 text-lg"></i>
+                        <span>SOS Pain Management (Only As Needed)</span>
+                    </div>
+                    <span class="text-xs font-bold bg-rose-200 text-rose-900 px-2.5 py-0.5 rounded-full">Kidney Safe</span>
+                </div>
+                <div class="space-y-2.5" id="listSOS">
+                    <!-- SOS items injected via JS -->
+                </div>
+            </div>
+
+            <!-- Custom Med Button -->
+            <button onclick="openAddMedModal()" class="w-full py-3.5 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center gap-2 transition shadow-sm">
+                <i class="fa-solid fa-circle-plus text-brand-500 text-lg"></i>
+                <span>Add Additional Doctor Prescribed Medicine</span>
+            </button>
+        </section>
+
+        <!-- TAB 2: VITALS LOGGING & TREND CHART -->
+        <section id="tabVitals" class="space-y-6 hidden">
+            <!-- Logging Form -->
+            <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between mb-4 border-b pb-3">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-square-plus text-brand-500"></i>
+                            <span>Record Twice-Daily Vitals</span>
+                        </h3>
+                        <p class="text-xs text-slate-500">Log Morning & Evening blood pressure, pulse, and oxygen SpO2%</p>
+                    </div>
+                    <span class="bg-blue-100 text-brand-800 text-xs font-bold px-3 py-1 rounded-full">2x Daily</span>
+                </div>
+
+                <form id="vitalsForm" onsubmit="handleVitalsSubmit(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Time Slot</label>
+                            <select id="vitalSlot" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-semibold text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                                <option value="Morning">🌅 Morning Vital</option>
+                                <option value="Evening">🌙 Evening Vital</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Oxygen SpO2 (%)</label>
+                            <div class="relative">
+                                <input type="number" id="vitalSpO2" placeholder="e.g. 98" min="70" max="100" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-base focus:ring-2 focus:ring-brand-500 outline-none pr-8">
+                                <span class="absolute right-3 top-3.5 text-xs font-bold text-slate-400">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Systolic BP (Top)</label>
+                            <input type="number" id="vitalSys" placeholder="130" min="60" max="250" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-base focus:ring-2 focus:ring-brand-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Diastolic BP (Low)</label>
+                            <input type="number" id="vitalDia" placeholder="80" min="40" max="160" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-base focus:ring-2 focus:ring-brand-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Pulse (bpm)</label>
+                            <input type="number" id="vitalPulse" placeholder="100" min="40" max="200" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-base focus:ring-2 focus:ring-brand-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Observations / Symptom Notes (Optional)</label>
+                        <input type="text" id="vitalNotes" placeholder="e.g. Measured after 10 mins rest. Feeling fine." class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+
+                    <button type="submit" class="w-full senior-btn bg-brand-900 hover:bg-blue-900 text-white rounded-xl shadow-md flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+                        <span>Save Reading & Sync to Family</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Vitals Trend Graph Card -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Blood Pressure & SpO2 Trend Graph</h3>
+                        <p class="text-xs text-slate-500">Visual monitoring for Dr. Sanjiv & Dr. Dhiraj review</p>
+                    </div>
+                </div>
+                <div class="h-64 w-full relative">
+                    <canvas id="vitalsChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: HISTORY & EXPORT -->
+        <section id="tabHistory" class="space-y-4 hidden">
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Vitals Log History</h2>
+                    <p class="text-xs text-slate-500">Complete record accessible by all family devices</p>
+                </div>
+                <button onclick="exportToCSV()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-sm transition">
+                    <i class="fa-solid fa-file-excel text-sm"></i>
+                    <span>Export CSV</span>
+                </button>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-3.5 bg-slate-100 border-b border-slate-200 font-bold text-xs text-slate-600 uppercase tracking-wider flex justify-between">
+                    <span>Reading Details</span>
+                    <span>BP & Oxygen</span>
+                </div>
+                <div class="divide-y divide-slate-100 max-h-96 overflow-y-auto custom-scrollbar" id="vitalsHistoryContainer">
+                    <!-- History entries injected via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: DOCTORS & PATIENT PROFILE -->
+        <section id="tabDoctors" class="space-y-5 hidden">
+            <!-- Patient Profile Card -->
+            <div class="bg-gradient-to-br from-slate-900 to-blue-950 text-white p-5 rounded-2xl shadow-md">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <span class="bg-blue-500/30 text-blue-200 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-blue-400/30 uppercase">UHID: 8000102849</span>
+                        <h2 class="text-2xl font-black mt-1">Mr. Manu Kumar Jha</h2>
+                        <p class="text-xs text-slate-300">62 Yrs, Male | Height: 165 cm | Weight: 85 kg | BMI: 31.2 kg/m²</p>
+                    </div>
+                    <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl text-blue-300">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </div>
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/10">
+                        <span class="text-blue-300 font-bold block mb-0.5">Nephrology Diagnosis:</span>
+                        <span class="text-white font-medium">Solitary Right Kidney, CKD Stage 3 (Baseline Creat. 1.4 mg/dL)</span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/10">
+                        <span class="text-blue-300 font-bold block mb-0.5">Neurology Diagnosis:</span>
+                        <span class="text-white font-medium">Post Posterior Circulation Stroke, Central Pain Syndrome</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Doctor Contacts -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Nephrologist -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-12 h-12 bg-amber-100 text-amber-800 rounded-2xl flex items-center justify-center text-xl font-bold">
+                                <i class="fa-solid fa-kidney"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-900 text-base">Dr. Dhiraj Kumar</h3>
+                                <p class="text-xs text-slate-500 font-medium">Consultant, Nephrology</p>
+                                <p class="text-[11px] text-slate-400">Reg No: JMC-10720</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <strong>Prescribed:</strong> Renolog, Sobisis, Silotime-D, T. Calpol-T (Kidney Protection & Acid Balance).
+                        </p>
+                    </div>
+                    <a href="tel:8080808069" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-brand-900 font-bold text-center rounded-xl text-xs flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-phone"></i>
+                        <span>Call Nephrology Department</span>
+                    </a>
+                </div>
+
+                <!-- Neurologist -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-2xl flex items-center justify-center text-xl font-bold">
+                                <i class="fa-solid fa-brain"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-900 text-base">Dr. Sanjiv Kumar Sharma</h3>
+                                <p class="text-xs text-slate-500 font-medium">Senior Consultant, Neurology</p>
+                                <p class="text-[11px] text-slate-400">Reg No: JMC/3550/2011</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <strong>Prescribed:</strong> Pantocid, Rozavel A, Amantrel, Amlong, Levipil XR (Stroke & Seizure Care).
+                        </p>
+                    </div>
+                    <a href="tel:8080808069" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-indigo-900 font-bold text-center rounded-xl text-xs flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-phone"></i>
+                        <span>Call Neurology Department</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Hospital Address & Emergency Dial -->
+            <div class="bg-rose-50 border border-rose-200 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-11 h-11 bg-rose-600 text-white rounded-2xl flex items-center justify-center text-xl flex-shrink-0">
+                        <i class="fa-solid fa-hospital"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-rose-950 text-sm">Paras HEC Hospital, Ranchi</h4>
+                        <p class="text-xs text-rose-800">Sector 3, Dhurwa, Ranchi, Jharkhand, India</p>
+                    </div>
+                </div>
+                <a href="tel:9297991004" class="w-full sm:w-auto px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition">
+                    <i class="fa-solid fa-phone-flip"></i>
+                    <span>Emergency (9297991004)</span>
+                </a>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Room Code Modal -->
+    <div id="roomModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-lg text-slate-900">Family Sync Room</h3>
+                <button onclick="closeRoomModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Enter the exact same <strong>Family Room Code</strong> on all family phones so everyone sees and updates the same vitals and medicine records in real-time.
+            </p>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Family Room Code</label>
+                <input type="text" id="roomCodeInput" value="JHA-FAMILY" class="w-full bg-slate-100 border border-slate-300 rounded-xl p-3 font-mono font-bold text-base text-center uppercase focus:ring-2 focus:ring-brand-500 outline-none">
+            </div>
+            <button onclick="saveRoomCode()" class="w-full senior-btn bg-brand-900 hover:bg-blue-900 text-white rounded-xl shadow-md">
+                Connect This Device
+            </button>
+        </div>
+    </div>
+
+    <!-- Custom Medication Modal -->
+    <div id="addMedModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-lg text-slate-900">Add Prescribed Medication</h3>
+                <button onclick="closeAddMedModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleCustomMedSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Medication Name & Strength</label>
+                    <input type="text" id="customMedName" placeholder="e.g. Telmisartan 40mg" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Purpose / Details</label>
+                    <input type="text" id="customMedDetail" placeholder="e.g. For BP Control" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Schedule Slot</label>
+                        <select id="customMedSlot" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-brand-500 outline-none">
+                            <option value="morning">🌅 Morning</option>
+                            <option value="afternoon">☀️ Afternoon</option>
+                            <option value="evening">🌙 Night</option>
+                            <option value="sos">🚨 SOS / As Needed</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Prescribed By</label>
+                        <input type="text" id="customMedDoctor" placeholder="Dr. Name" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                </div>
+                <button type="submit" class="w-full senior-btn bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md mt-2">
+                    Save to Family Room Schedule
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Message Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Firebase Module Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Mandates
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'caresync-manu-jha';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "AIzaSyDemoKeyForCareSyncTestingOnly",
+                authDomain: "caresync-app.firebaseapp.com",
+                projectId: "caresync-app",
+                storageBucket: "caresync-app.appspot.com",
+                messagingSenderId: "1234567890",
+                appId: "1:1234567890:web:abcdef123456"
+            };
+
+        let app, auth, db;
+        let currentUser = null;
+        let activeSnapshotUnsub = null;
+
+        window.currentRoomId = localStorage.getItem('careSync_roomId') || 'JHA-FAMILY';
+        window.todayDateStr = new Date().toISOString().split('T')[0];
+
+        // Master Doctor Prescriptions for Mr. Manu Kumar Jha
+        const MASTER_MEDICATIONS = [
+            // Morning
+            { id: 'm1', slot: 'morning', name: 'Pantocid 40mg', detail: 'Stomach Protection / Acid Control', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
+            { id: 'm2', slot: 'morning', name: 'Renolog 381mg', detail: 'Alpha Ketoanalogue (Single Kidney Amino Acids)', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
+            { id: 'm3', slot: 'morning', name: 'Sobisis 500mg', detail: 'Sodium Bicarbonate (Blood Acid Control)', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
+            { id: 'm4', slot: 'morning', name: 'Amantrel 100mg', detail: 'Post-Stroke Fatigue / Central Pain Care', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
+
+            // Afternoon
+            { id: 'a1', slot: 'afternoon', name: 'Renolog 381mg', detail: 'Alpha Ketoanalogue (Single Kidney Amino Acids)', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
+            { id: 'a2', slot: 'afternoon', name: 'Amantrel 100mg', detail: 'Post-Stroke Fatigue / Central Pain Care', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
+
+            // Night
+            { id: 'e1', slot: 'evening', name: 'Amlong 5mg', detail: 'Blood Pressure Control (Amlodipine)', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
+            { id: 'e2', slot: 'evening', name: 'Silotime-D 8mg+0.5mg', detail: 'Prostate Care (Silodosin + Dutasteride)', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
+            { id: 'e3', slot: 'evening', name: 'Renolog 381mg', detail: 'Alpha Ketoanalogue (Single Kidney Amino Acids)', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
+            { id: 'e4', slot: 'evening', name: 'Rozavel A 10mg+75mg', detail: 'Rosuvastatin + Aspirin (Stroke Clot Prevention)', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
+            { id: 'e5', slot: 'evening', name: 'Levipil XR 500mg', detail: 'Seizure Prevention (Levetiracetam)', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
+
+            // SOS Pain Management
+            { id: 's1', slot: 'sos', name: 'T. Calpol-T', detail: 'Paracetamol + Tramadol (KIDNEY-SAFE PAIN RELIEF - NO NSAIDs)', doctor: 'Dr. Dhiraj Kumar (Nephro)' }
+        ];
+
+        // Shared App Data State
+        window.activeMeds = [...MASTER_MEDICATIONS];
+        window.medLogs = {}; // { [medId]: { taken: boolean, time: string } }
+        window.vitalsLogs = [];
+        window.chartInstance = null;
+
+        async function initFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // RULE 3 - Authenticate FIRST
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        listenToFamilyRoom(window.currentRoomId);
+                    }
+                });
+            } catch (err) {
+                console.warn("Firebase falling back to offline local state:", err);
+                renderUI();
+            }
+        }
+
+        function listenToFamilyRoom(roomId) {
+            if (!currentUser || !db) return;
+
+            if (activeSnapshotUnsub) {
+                activeSnapshotUnsub();
+            }
+
+            // RULE 1 - Strict Path: /artifacts/{appId}/public/data/family_data/{roomId}
+            const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'family_data', roomId);
+
+            activeSnapshotUnsub = onSnapshot(roomDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    // Check if new day, reset med log if required
+                    if (data.lastLogDate === window.todayDateStr) {
+                        window.medLogs = data.medLogs || {};
+                    } else {
+                        window.medLogs = {};
+                    }
+
+                    if (data.customMeds && Array.isArray(data.customMeds)) {
+                        window.activeMeds = [...MASTER_MEDICATIONS, ...data.customMeds];
+                    }
+
+                    window.vitalsLogs = data.vitalsLogs || getInitialSampleVitals();
+                } else {
+                    // Seed initial data for room
+                    window.vitalsLogs = getInitialSampleVitals();
+                    syncRoomToCloud();
+                }
+
+                renderUI();
+            }, (error) => {
+                console.error("Firestore sync error:", error);
+                renderUI();
+            });
+        }
+
+        window.syncRoomToCloud = async function() {
+            if (!currentUser || !db) return;
+
+            try {
+                const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'family_data', window.currentRoomId);
+                const customMedsOnly = window.activeMeds.filter(m => m.id.startsWith('custom_'));
+
+                await setDoc(roomDocRef, {
+                    roomId: window.currentRoomId,
+                    lastLogDate: window.todayDateStr,
+                    medLogs: window.medLogs,
+                    vitalsLogs: window.vitalsLogs,
+                    customMeds: customMedsOnly,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            } catch (err) {
+                console.error("Error saving room data:", err);
+            }
+        };
+
+        window.toggleMed = function(medId) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            const isCurrentlyTaken = window.medLogs[medId]?.taken || false;
+            window.medLogs[medId] = {
+                taken: !isCurrentlyTaken,
+                time: !isCurrentlyTaken ? timeStr : null
+            };
+
+            renderMedsUI();
+            window.syncRoomToCloud();
+            showToast(!isCurrentlyTaken ? "Medication marked as taken" : "Medication unchecked");
+        };
+
+        window.handleVitalsSubmit = function(e) {
+            e.preventDefault();
+            const slot = document.getElementById('vitalSlot').value;
+            const sys = parseInt(document.getElementById('vitalSys').value);
+            const dia = parseInt(document.getElementById('vitalDia').value);
+            const pulse = parseInt(document.getElementById('vitalPulse').value);
+            const spo2 = parseInt(document.getElementById('vitalSpO2').value);
+            const notes = document.getElementById('vitalNotes').value;
+
+            const newEntry = {
+                id: Date.now().toString(),
+                timestamp: new Date().toISOString(),
+                dateStr: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                slot,
+                sys,
+                dia,
+                pulse,
+                spo2,
+                notes
+            };
+
+            window.vitalsLogs.unshift(newEntry);
+            
+            // Clear inputs
+            document.getElementById('vitalSys').value = '';
+            document.getElementById('vitalDia').value = '';
+            document.getElementById('vitalPulse').value = '';
+            document.getElementById('vitalSpO2').value = '';
+            document.getElementById('vitalNotes').value = '';
+
+            renderVitalsUI();
+            renderHistoryUI();
+            window.syncRoomToCloud();
+            showToast("Vitals logged & synced to family!");
+        };
+
+        function renderMedsUI() {
+            const slots = ['morning', 'afternoon', 'evening', 'sos'];
+            let totalMeds = 0;
+            let takenCount = 0;
+
+            slots.forEach(slot => {
+                const container = document.getElementById(`list${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
+                if (!container) return;
+
+                const medsInSlot = window.activeMeds.filter(m => m.slot === slot);
+                container.innerHTML = '';
+
+                medsInSlot.forEach(med => {
+                    if (slot !== 'sos') totalMeds++;
+                    const log = window.medLogs[med.id] || {};
+                    const isTaken = log.taken;
+                    if (isTaken && slot !== 'sos') takenCount++;
+
+                    const card = document.createElement('div');
+                    card.className = `p-3.5 rounded-xl border flex items-center justify-between transition-all ${
+                        isTaken 
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-950' 
+                            : 'bg-white border-slate-200 text-slate-800 shadow-sm hover:border-slate-300'
+                    }`;
+
+                    card.innerHTML = `
+                        <div class="flex items-center space-x-3.5">
+                            <button onclick="toggleMed('${med.id}')" class="focus:outline-none flex-shrink-0">
+                                <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold border-2 transition ${
+                                    isTaken 
+                                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' 
+                                        : 'border-slate-300 text-transparent hover:border-brand-500'
+                                }">
+                                    <i class="fa-solid fa-check"></i>
+                                </div>
+                            </button>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h4 class="font-bold text-sm sm:text-base ${isTaken ? 'line-through text-emerald-800' : 'text-slate-900'}">${med.name}</h4>
+                                    ${isTaken ? `<span class="bg-emerald-200 text-emerald-900 text-[10px] font-bold px-2 py-0.5 rounded-full">${log.time || 'Taken'}</span>` : ''}
+                                </div>
+                                <p class="text-xs text-slate-500 font-medium">${med.detail}</p>
+                                <span class="text-[10px] font-semibold text-slate-400"><i class="fa-solid fa-user-doctor text-[9px]"></i> ${med.doctor}</span>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            });
+
+            const badge = document.getElementById('medCompletionBadge');
+            if (badge) {
+                badge.textContent = `${takenCount} / ${totalMeds} Taken`;
+                badge.className = takenCount === totalMeds && totalMeds > 0
+                    ? "text-sm font-black bg-emerald-600 text-white px-3.5 py-1 rounded-full shadow-sm animate-bounce" 
+                    : "text-sm font-black bg-brand-900 text-white px-3.5 py-1 rounded-full shadow-sm";
+            }
+        }
+
+        function renderVitalsUI() {
+            const ctx = document.getElementById('vitalsChart');
+            if (!ctx) return;
+
+            const recentLogs = [...window.vitalsLogs].slice(0, 12).reverse();
+            const labels = recentLogs.map(l => l.dateStr || 'Reading');
+            const sysData = recentLogs.map(l => l.sys);
+            const diaData = recentLogs.map(l => l.dia);
+            const spo2Data = recentLogs.map(l => l.spo2);
+
+            if (window.chartInstance) {
+                window.chartInstance.destroy();
+            }
+
+            window.chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Systolic BP (Top)',
+                            data: sysData,
+                            borderColor: '#dc2626',
+                            backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Diastolic BP (Low)',
+                            data: diaData,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Oxygen SpO2 %',
+                            data: spo2Data,
+                            borderColor: '#16a34a',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2.5,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
+                    },
+                    scales: {
+                        y: { min: 60, max: 180 }
+                    }
+                }
+            });
+        }
+
+        function renderHistoryUI() {
+            const container = document.getElementById('vitalsHistoryContainer');
+            if (!container) return;
+
+            container.innerHTML = '';
+            if (window.vitalsLogs.length === 0) {
+                container.innerHTML = `<p class="p-5 text-xs text-slate-400 text-center">No vital records logged yet.</p>`;
+                return;
+            }
+
+            window.vitalsLogs.forEach(item => {
+                const isBpHigh = item.sys >= 140 || item.dia >= 90;
+                const isSpO2Low = item.spo2 < 95;
+
+                const row = document.createElement('div');
+                row.className = "p-3.5 flex items-center justify-between hover:bg-slate-50 transition";
+                row.innerHTML = `
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-bold text-slate-900">${item.dateStr}</span>
+                            <span class="text-[10px] bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded-full">${item.slot}</span>
+                        </div>
+                        <div class="text-xs text-slate-500 mt-1">
+                            Pulse: <strong class="text-slate-700">${item.pulse} bpm</strong> ${item.notes ? `| <em>${item.notes}</em>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3 text-right">
+                        <div>
+                            <span class="text-sm font-black ${isBpHigh ? 'text-red-600' : 'text-slate-900'}">${item.sys}/${item.dia}</span>
+                            <span class="text-[10px] block font-bold text-slate-400">BP mmHg</span>
+                        </div>
+                        <div class="border-l pl-3 border-slate-200">
+                            <span class="text-sm font-black ${isSpO2Low ? 'text-amber-600' : 'text-emerald-700'}">${item.spo2}%</span>
+                            <span class="text-[10px] block font-bold text-slate-400">SpO2</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function getInitialSampleVitals() {
+            return [
+                { id: '101', dateStr: 'Sep 21, 01:28 PM', slot: 'Morning', sys: 130, dia: 80, pulse: 100, spo2: 99, notes: 'Prescription Baseline at Paras Hospital' },
+                { id: '102', dateStr: 'Sep 20, 08:30 PM', slot: 'Evening', sys: 132, dia: 82, pulse: 94, spo2: 98, notes: 'After evening walk' },
+                { id: '103', dateStr: 'Sep 20, 08:30 AM', slot: 'Morning', sys: 128, dia: 80, pulse: 90, spo2: 98, notes: 'Resting' }
+            ];
+        }
+
+        function renderUI() {
+            const dateDisplay = document.getElementById('currentDateDisplay');
+            if (dateDisplay) {
+                const options = { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' };
+                dateDisplay.textContent = new Date().toLocaleDateString('en-US', options);
+            }
+
+            document.getElementById('roomCodeDisplay').textContent = window.currentRoomId;
+            renderMedsUI();
+            renderVitalsUI();
+            renderHistoryUI();
+        }
+
+        window.showToast = function(msg) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = "bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold flex items-center space-x-2 animate-fade-in pointer-events-auto";
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i><span>${msg}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initFirebase();
+            renderUI();
+        });
+    </script>
+
+    <script>
+        function switchTab(tabName) {
+            ['meds', 'vitals', 'history', 'doctors'].forEach(t => {
+                const tabEl = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+                const btnEl = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+                
+                if (t === tabName) {
+                    tabEl.classList.remove('hidden');
+                    btnEl.className = "py-2.5 px-1 rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 bg-white text-brand-900 shadow-sm transition";
+                } else {
+                    tabEl.classList.add('hidden');
+                    btnEl.className = "py-2.5 px-1 rounded-xl text-xs sm:text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 text-slate-600 hover:text-brand-900 transition";
+                }
+            });
+
+            if (tabName === 'vitals' && window.chartInstance) {
+                setTimeout(() => window.chartInstance.resize(), 100);
+            }
+        }
+
+        function openRoomModal() {
+            document.getElementById('roomModal').classList.remove('hidden');
+        }
+
+        function closeRoomModal() {
+            document.getElementById('roomModal').classList.add('hidden');
+        }
+
+        function saveRoomCode() {
+            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (code) {
+                window.currentRoomId = code;
+                localStorage.setItem('careSync_roomId', code);
+                document.getElementById('roomCodeDisplay').textContent = code;
+                closeRoomModal();
+                location.reload();
+            }
+        }
+
+        function openAddMedModal() {
+            document.getElementById('addMedModal').classList.remove('hidden');
+        }
+
+        function closeAddMedModal() {
+            document.getElementById('addMedModal').classList.add('hidden');
+        }
+
+        function handleCustomMedSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('customMedName').value;
+            const detail = document.getElementById('customMedDetail').value;
+            const slot = document.getElementById('customMedSlot').value;
+            const doctor = document.getElementById('customMedDoctor').value || 'Prescribed';
+
+            const newMed = {
+                id: 'custom_' + Date.now(),
+                slot,
+                name,
+                detail,
+                doctor
+            };
+
+            window.activeMeds.push(newMed);
+            if (window.syncRoomToCloud) {
+                window.syncRoomToCloud();
+            }
+            closeAddMedModal();
+            if (window.showToast) window.showToast("Added custom medicine!");
+        }
+
+        function exportToCSV() {
+            if (!window.vitalsLogs || window.vitalsLogs.length === 0) {
+                if (window.showToast) window.showToast("No vitals data available to export.");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,Date & Time,Slot,Systolic BP (mmHg),Diastolic BP (mmHg),Pulse (bpm),Oxygen SpO2 (%),Notes\n";
+            window.vitalsLogs.forEach(r => {
+                csvContent += `"${r.dateStr}","${r.slot}",${r.sys},${r.dia},${r.pulse},${r.spo2},"${r.notes || ''}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `CareSync_Mr_Manu_Jha_Vitals_${window.todayDateStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
