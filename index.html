@@ -2,1036 +2,1028 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CareSync - Patient Care & Vitals Tracker</title>
-    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- FontAwesome 6 Icons -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Chart.js for Vitals Trends -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Gun.js for Zero-Config Realtime Peer-to-Peer Cloud Sync -->
-    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-    
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
                     colors: {
                         brand: {
-                            50: '#f0f7ff',
-                            100: '#e0effe',
-                            500: '#2563eb',
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
                             700: '#1d4ed8',
-                            900: '#1e3a8a'
-                        },
-                        kidney: {
-                            50: '#fff7ed',
-                            600: '#ea580c',
-                            900: '#7c2d12'
+                            800: '#1e40af',
+                            900: '#1e3a8a',
                         }
                     }
                 }
             }
         }
     </script>
-
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f8fafc;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .senior-btn {
-            min-height: 54px;
-            font-size: 1.1rem;
-            font-weight: 700;
-        }
-        .touch-target {
-            min-height: 48px;
-            min-width: 48px;
-        }
-        @media print {
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            body { background: white; color: black; }
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1;
-            border-radius: 9999px;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+        /* High contrast senior-friendly focus outlines and custom scrollbars */
+        input, button, select { touch-action: manipulation; }
+        .senior-card { background: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .checkbox-large { width: 1.6rem; height: 1.6rem; cursor: pointer; accent-color: #2563eb; }
+        .tab-btn.active { border-bottom-width: 4px; border-color: #2563eb; color: #1e3a8a; font-weight: 700; background-color: #eff6ff; }
     </style>
 </head>
-<body class="text-slate-900 pb-20 md:pb-10">
+<body class="min-h-screen flex flex-col antialiased">
 
-    <!-- Top Sticky Header -->
-    <header class="bg-brand-900 text-white sticky top-0 z-40 shadow-md no-print">
-        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-xl text-red-400 font-bold">
-                    <i class="fa-solid fa-heart-pulse"></i>
+    <!-- Top Header & Patient Banner -->
+    <header class="bg-slate-900 text-white shadow-md border-b-4 border-blue-600">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-3 rounded-xl text-white flex items-center justify-center text-2xl shadow">
+                    <i class="fa-solid font-bold fa-heart-pulse"></i>
                 </div>
                 <div>
                     <div class="flex items-center gap-2">
-                        <h1 class="text-lg font-black tracking-tight leading-none">CareSync</h1>
-                        <span id="syncStatusBadge" class="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-400/30 flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                            <span id="syncStatusText">Saved Locally</span>
-                        </span>
+                        <h1 class="text-2xl font-extrabold tracking-tight">CareSync</h1>
+                        <span class="bg-blue-800 text-blue-100 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Live Cloud Sync</span>
                     </div>
-                    <p class="text-xs text-blue-200 mt-0.5">Patient: <strong class="text-white">Mr. Manu Kumar Jha</strong> (62Y, M)</p>
+                    <p class="text-slate-300 font-medium text-sm md:text-base">Patient: <span class="text-white font-bold underline decoration-blue-400">Mr. Manu Kumar Jha</span></p>
                 </div>
             </div>
 
-            <!-- Room Code Button -->
-            <button onclick="openRoomModal()" class="flex items-center space-x-2 bg-brand-800 hover:bg-blue-700 px-3 py-1.5 rounded-xl border border-blue-400/30 text-xs transition shadow-sm">
-                <i class="fa-solid fa-house-signal text-blue-300"></i>
-                <div class="text-left hidden sm:block">
-                    <span class="text-[9px] text-blue-300 block uppercase font-bold tracking-wider">Sync Room</span>
-                    <span id="headerRoomCode" class="font-mono font-black text-white text-xs">JHA-FAMILY</span>
+            <!-- Sync Room Controls -->
+            <div class="bg-slate-800 p-2.5 rounded-xl border border-slate-700 flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <div class="flex items-center gap-1.5 px-2 py-1 bg-slate-900 rounded-lg text-xs font-bold text-slate-300">
+                    <i class="fa-solid fa-key text-blue-400"></i> ROOM:
                 </div>
-                <i class="fa-solid fa-gear text-xs text-blue-300 ml-1"></i>
-            </button>
+                <input id="roomCodeInput" type="text" value="JHA-FAMILY" uppercase class="bg-slate-900 text-amber-300 font-mono font-bold px-3 py-1.5 text-sm rounded-lg border border-slate-600 focus:outline-none focus:border-blue-400 w-32 uppercase text-center tracking-wider" placeholder="ROOM CODE">
+                <button id="joinRoomBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-2 rounded-lg transition active:scale-95 flex items-center gap-1">
+                    <i class="fa-solid fa-arrows-rotate"></i> Sync
+                </button>
+                <button id="copyRoomBtn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold text-xs px-2.5 py-2 rounded-lg transition" title="Copy Room Link">
+                    <i class="fa-solid fa-share-nodes"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Connection Status Indicator Ribbon -->
+        <div id="statusRibbon" class="bg-emerald-700 text-white text-xs md:text-sm font-semibold px-4 py-1.5 text-center flex items-center justify-center gap-2 transition-colors duration-300">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-pulse"></span>
+            <span id="statusText">Connected & Syncing Realtime with Cloud (Room: JHA-FAMILY)</span>
         </div>
     </header>
 
-    <!-- Solitary Kidney & Stroke Medical Safety Banner -->
-    <div class="bg-amber-50 border-b border-amber-200 px-4 py-2.5 shadow-inner no-print">
-        <div class="max-w-4xl mx-auto flex items-start space-x-3">
-            <i class="fa-solid fa-shield-halved text-amber-600 text-lg mt-0.5 flex-shrink-0"></i>
-            <div class="text-xs sm:text-sm text-amber-900 leading-snug">
-                <strong class="text-amber-950 uppercase font-black tracking-wide">⚠️ Solitary Kidney & Stroke Recovery Alert:</strong>
-                CKD Stage 3 (Baseline Creatinine 1.4 mg/dL). <span class="text-red-700 font-bold underline">STRICTLY NO NSAIDs</span> (Ibuprofen, Diclofenac). Use <em>T. Calpol-T</em> only on SOS basis for pain relief.
-            </div>
-        </div>
-    </div>
+    <!-- Main Content Container -->
+    <main class="max-w-5xl mx-auto w-full px-3 md:px-4 py-5 flex-grow">
 
-    <!-- Main Application Container -->
-    <main class="max-w-4xl mx-auto px-4 py-4">
-
-        <!-- Navigation Tabs Bar -->
-        <div class="grid grid-cols-5 gap-1 bg-slate-200 p-1.5 rounded-2xl mb-5 shadow-inner no-print text-center">
-            <button id="tabBtnMeds" onclick="switchTab('meds')" class="py-2 px-1 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 bg-white text-brand-900 shadow-sm transition">
-                <i class="fa-solid fa-pills text-base"></i>
-                <span class="hidden sm:inline">Checklist</span>
+        <!-- Navigation Tabs -->
+        <nav class="flex border-b-2 border-slate-300 mb-6 bg-white rounded-t-xl overflow-x-auto shadow-sm" justify-start>
+            <button id="tabMeds" class="tab-btn active flex-1 py-3.5 px-4 text-center font-bold text-base md:text-lg flex items-center justify-center gap-2 transition min-w-[140px]">
+                <i class="fa-solid fa-pills text-blue-600"></i> Daily Meds
             </button>
-            <button id="tabBtnVitals" onclick="switchTab('vitals')" class="py-2 px-1 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 text-slate-600 hover:text-brand-900 transition">
-                <i class="fa-solid fa-heart-pulse text-base"></i>
-                <span class="hidden sm:inline">Log Vitals</span>
+            <button id="tabVitals" class="tab-btn flex-1 py-3.5 px-4 text-center font-bold text-base md:text-lg text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2 transition min-w-[140px]">
+                <i class="fa-solid fa-stethoscope text-red-500"></i> Log Vitals
             </button>
-            <button id="tabBtnTrends" onclick="switchTab('trends')" class="py-2 px-1 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 text-slate-600 hover:text-brand-900 transition">
-                <i class="fa-solid fa-chart-line text-base"></i>
-                <span class="hidden sm:inline">Trends</span>
+            <button id="tabHistory" class="tab-btn flex-1 py-3.5 px-4 text-center font-bold text-base md:text-lg text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2 transition min-w-[140px]">
+                <i class="fa-solid fa-file-medical text-emerald-600"></i> History & Export
             </button>
-            <button id="tabBtnReport" onclick="switchTab('report')" class="py-2 px-1 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 text-slate-600 hover:text-brand-900 transition">
-                <i class="fa-solid fa-user-doctor text-base"></i>
-                <span class="hidden sm:inline">Doctor Summary</span>
-            </button>
-            <button id="tabBtnSettings" onclick="switchTab('settings')" class="py-2 px-1 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 text-slate-600 hover:text-brand-900 transition">
-                <i class="fa-solid fa-sliders text-base"></i>
-                <span class="hidden sm:inline">Sync / Settings</span>
-            </button>
-        </div>
+        </nav>
 
-        <!-- TAB 1: MEDICATIONS CHECKLIST -->
-        <section id="tabMeds" class="space-y-5">
-            <!-- Date Navigation Header -->
-            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div class="flex items-center space-x-3 w-full sm:w-auto justify-between">
-                    <button onclick="changeDate(-1)" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center justify-center text-slate-700 font-bold transition">
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                    <div class="text-center">
-                        <input type="date" id="selectedDateInput" onchange="onDateInputChange(this.value)" class="font-black text-slate-900 bg-transparent text-base sm:text-lg text-center cursor-pointer outline-none">
-                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider" id="selectedDayLabel">Today</p>
+        <!-- SECTION 1: MEDICATIONS TRACKER -->
+        <section id="sectionMeds" class="space-y-5">
+            <!-- Date Bar & Progress Summary -->
+            <div class="senior-card p-4 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
+                <div class="flex items-center gap-3">
+                    <div class="bg-slate-100 p-2.5 rounded-lg border border-slate-300">
+                        <i class="fa-solid fa-calendar-day text-blue-600 text-xl"></i>
                     </div>
-                    <button onclick="changeDate(1)" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center justify-center text-slate-700 font-bold transition">
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </button>
+                    <div>
+                        <span class="text-xs uppercase font-bold text-slate-500 tracking-wider">Active Medication Date</span>
+                        <input type="date" id="medDateInput" class="block font-extrabold text-slate-900 text-lg bg-transparent border-b-2 border-blue-500 focus:outline-none cursor-pointer">
+                    </div>
                 </div>
 
-                <!-- Daily Completion Progress Pill -->
-                <div class="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 bg-blue-50 px-4 py-2.5 rounded-xl border border-blue-100">
-                    <span class="text-xs font-bold text-blue-900">Schedule Status:</span>
-                    <span id="medCompletionBadge" class="text-sm font-black bg-brand-900 text-white px-3.5 py-1 rounded-full shadow-sm">
-                        0 / 11 Taken
-                    </span>
+                <!-- Progress Pill -->
+                <div class="w-full md:w-64 bg-slate-100 p-3 rounded-lg border border-slate-200">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-700 mb-1">
+                        <span>TODAY'S COMPLETION</span>
+                        <span id="medAdherencePercent">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-300 rounded-full h-3 overflow-hidden">
+                        <div id="medProgressBar" class="bg-emerald-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-500 mt-1 text-right" id="medCountText">0 of 0 taken</p>
                 </div>
             </div>
 
-            <!-- Morning Meds Section -->
-            <div class="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 shadow-sm">
-                <div class="flex items-center justify-between mb-3 border-b border-amber-200 pb-2">
-                    <div class="flex items-center space-x-2 text-amber-950 font-black text-base">
-                        <i class="fa-solid fa-sun text-amber-500 text-lg"></i>
-                        <span>Morning (8:00 AM)</span>
-                    </div>
-                    <span class="text-xs font-bold bg-amber-200/80 text-amber-900 px-2.5 py-0.5 rounded-full">3 Prescriptions</span>
-                </div>
-                <div class="space-y-2.5" id="listMorning"></div>
+            <!-- Add Custom Med Accordion / Button -->
+            <div class="flex justify-between items-center px-1">
+                <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-notes-medical text-blue-600"></i> Prescribed Schedule
+                </h2>
+                <button id="openAddMedModalBtn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs md:text-sm px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-plus text-amber-400"></i> Add Medicine
+                </button>
             </div>
 
-            <!-- Afternoon Meds Section -->
-            <div class="bg-sky-50/80 border border-sky-200 rounded-2xl p-4 shadow-sm">
-                <div class="flex items-center justify-between mb-3 border-b border-sky-200 pb-2">
-                    <div class="flex items-center space-x-2 text-sky-950 font-black text-base">
-                        <i class="fa-solid fa-cloud-sun text-sky-500 text-lg"></i>
-                        <span>Afternoon (1:00 PM)</span>
-                    </div>
-                    <span class="text-xs font-bold bg-sky-200/80 text-sky-900 px-2.5 py-0.5 rounded-full">1 Prescription</span>
-                </div>
-                <div class="space-y-2.5" id="listAfternoon"></div>
+            <!-- Quick Filter Badges -->
+            <div class="flex flex-wrap gap-2 pt-1 pb-2">
+                <button data-filter="ALL" class="med-filter-btn px-3 py-1.5 rounded-lg font-bold text-xs bg-blue-700 text-white shadow">All Consults</button>
+                <button data-filter="Nephrology" class="med-filter-btn px-3 py-1.5 rounded-lg font-bold text-xs bg-slate-200 text-slate-700 hover:bg-slate-300">Nephrology</button>
+                <button data-filter="Neurology" class="med-filter-btn px-3 py-1.5 rounded-lg font-bold text-xs bg-slate-200 text-slate-700 hover:bg-slate-300">Neurology</button>
+                <button data-filter="Gastro/General" class="med-filter-btn px-3 py-1.5 rounded-lg font-bold text-xs bg-slate-200 text-slate-700 hover:bg-slate-300">Gastro/General</button>
             </div>
 
-            <!-- Evening Meds Section -->
-            <div class="bg-orange-50/80 border border-orange-200 rounded-2xl p-4 shadow-sm">
-                <div class="flex items-center justify-between mb-3 border-b border-orange-200 pb-2">
-                    <div class="flex items-center space-x-2 text-orange-950 font-black text-base">
-                        <i class="fa-solid fa-mountain-sun text-orange-500 text-lg"></i>
-                        <span>Evening (6:00 PM)</span>
-                    </div>
-                    <span class="text-xs font-bold bg-orange-200/80 text-orange-900 px-2.5 py-0.5 rounded-full">2 Prescriptions</span>
-                </div>
-                <div class="space-y-2.5" id="listEvening"></div>
+            <!-- Medication List Grid -->
+            <div id="medicationList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Dynamically Populated -->
             </div>
-
-            <!-- Night Meds Section -->
-            <div class="bg-indigo-50/80 border border-indigo-200 rounded-2xl p-4 shadow-sm">
-                <div class="flex items-center justify-between mb-3 border-b border-indigo-200 pb-2">
-                    <div class="flex items-center space-x-2 text-indigo-950 font-black text-base">
-                        <i class="fa-solid fa-moon text-indigo-500 text-lg"></i>
-                        <span>Night (9:00 PM)</span>
-                    </div>
-                    <span class="text-xs font-bold bg-indigo-200/80 text-indigo-900 px-2.5 py-0.5 rounded-full">5 Prescriptions</span>
-                </div>
-                <div class="space-y-2.5" id="listNight"></div>
-            </div>
-
-            <!-- SOS / As Needed Section -->
-            <div class="bg-rose-50/80 border border-rose-200 rounded-2xl p-4 shadow-sm">
-                <div class="flex items-center justify-between mb-3 border-b border-rose-200 pb-2">
-                    <div class="flex items-center space-x-2 text-rose-950 font-black text-base">
-                        <i class="fa-solid fa-kit-medical text-rose-500 text-lg"></i>
-                        <span>SOS Pain Relief (Only As Needed)</span>
-                    </div>
-                    <span class="text-xs font-bold bg-rose-200 text-rose-900 px-2.5 py-0.5 rounded-full">Kidney Safe</span>
-                </div>
-                <div class="space-y-2.5" id="listSOS"></div>
-            </div>
-
-            <button onclick="openAddMedModal()" class="w-full py-3.5 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center gap-2 transition shadow-sm">
-                <i class="fa-solid fa-circle-plus text-brand-500 text-lg"></i>
-                <span>Add Custom Doctor Prescribed Medication</span>
-            </button>
         </section>
 
-        <!-- TAB 2: VITALS TRACKER FORM -->
-        <section id="tabVitals" class="space-y-6 hidden">
-            <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between mb-4 border-b pb-3">
+        <!-- SECTION 2: VITALS LOGGER -->
+        <section id="sectionVitals" class="hidden space-y-6">
+            <div class="senior-card p-5 rounded-xl bg-white space-y-5">
+                <div class="border-b pb-3 flex justify-between items-center flex-wrap gap-2">
                     <div>
-                        <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-square-plus text-brand-500"></i>
-                            <span>Record Twice-Daily Vitals</span>
-                        </h3>
-                        <p class="text-xs text-slate-500">Log Morning & Evening blood pressure, pulse, and SpO2 oxygen</p>
+                        <h2 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-heart-pulse text-red-600"></i> Log Twice-Daily Vitals
+                        </h2>
+                        <p class="text-xs text-slate-500 font-medium">Record Blood Pressure, Oxygen SpO2, and Heart Rate for Mr. Manu Kumar Jha</p>
                     </div>
-                    <span class="bg-blue-100 text-brand-900 text-xs font-bold px-3 py-1 rounded-full">Target: &lt;130/80</span>
+                    <span id="timeOfDayBadge" class="bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                        <i class="fa-solid fa-sun"></i> Morning Session
+                    </span>
                 </div>
 
-                <form id="vitalsForm" onsubmit="handleVitalsSubmit(event)" class="space-y-4">
+                <form id="vitalsForm" class="space-y-5">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Measurement Time Slot</label>
-                            <select id="vitalSlot" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-semibold text-sm focus:ring-2 focus:ring-brand-500 outline-none">
-                                <option value="Morning">🌅 Morning Vital (8:00 AM)</option>
-                                <option value="Evening">🌙 Evening Vital (8:00 PM)</option>
-                            </select>
+                        
+                        <!-- Blood Pressure Systolic / Diastolic -->
+                        <div class="bg-slate-50 p-4 rounded-xl border-2 border-slate-200 space-y-2">
+                            <label class="block text-sm font-extrabold text-slate-800 uppercase tracking-wide">
+                                <i class="fa-solid fa-gauge-high text-blue-600 mr-1"></i> Blood Pressure (mmHg)
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-500">Systolic (Top)</span>
+                                    <input type="number" id="vitalSys" min="50" max="250" placeholder="120" required class="w-full text-center font-extrabold text-2xl p-2.5 bg-white border-2 border-slate-300 rounded-lg focus:border-blue-600 focus:outline-none">
+                                </div>
+                                <div>
+                                    <span class="text-xs font-bold text-slate-500">Diastolic (Bottom)</span>
+                                    <input type="number" id="vitalDia" min="30" max="150" placeholder="80" required class="w-full text-center font-extrabold text-2xl p-2.5 bg-white border-2 border-slate-300 rounded-lg focus:border-blue-600 focus:outline-none">
+                                </div>
+                            </div>
+                            <div id="bpCategoryTag" class="text-center py-1 text-xs font-bold rounded-md bg-slate-200 text-slate-700 mt-1">
+                                Enter readings above
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Oxygen Saturation SpO2 (%)</label>
-                            <div class="relative">
-                                <input type="number" id="vitalSpO2" placeholder="e.g. 98" min="70" max="100" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-base focus:ring-2 focus:ring-brand-500 outline-none pr-8">
-                                <span class="absolute right-3 top-3.5 text-xs font-bold text-slate-400">%</span>
+
+                        <!-- Oxygen SpO2 & Pulse -->
+                        <div class="bg-slate-50 p-4 rounded-xl border-2 border-slate-200 space-y-2">
+                            <label class="block text-sm font-extrabold text-slate-800 uppercase tracking-wide">
+                                <i class="fa-solid fa-lungs text-emerald-600 mr-1"></i> Oxygen & Heart Rate
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-500">Oxygen SpO2 (%)</span>
+                                    <input type="number" id="vitalSpO2" min="50" max="100" placeholder="98" required class="w-full text-center font-extrabold text-2xl p-2.5 bg-white border-2 border-slate-300 rounded-lg focus:border-blue-600 focus:outline-none">
+                                </div>
+                                <div>
+                                    <span class="text-xs font-bold text-slate-500">Pulse (BPM)</span>
+                                    <input type="number" id="vitalPulse" min="30" max="220" placeholder="72" required class="w-full text-center font-extrabold text-2xl p-2.5 bg-white border-2 border-slate-300 rounded-lg focus:border-blue-600 focus:outline-none">
+                                </div>
+                            </div>
+                            <div id="spo2CategoryTag" class="text-center py-1 text-xs font-bold rounded-md bg-slate-200 text-slate-700 mt-1">
+                                Enter Oxygen level
                             </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Systolic (Top)</label>
-                            <input type="number" id="vitalSys" placeholder="130" min="60" max="250" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-base focus:ring-2 focus:ring-brand-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Diastolic (Low)</label>
-                            <input type="number" id="vitalDia" placeholder="80" min="40" max="160" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-base focus:ring-2 focus:ring-brand-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Pulse (BPM)</label>
-                            <input type="number" id="vitalPulse" placeholder="100" min="40" max="200" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-base focus:ring-2 focus:ring-brand-500 outline-none">
-                        </div>
-                    </div>
-
+                    <!-- Notes / Symptoms -->
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Notes / Observations</label>
-                        <input type="text" id="vitalNotes" placeholder="e.g. After 10 mins rest. No dizziness." class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1">
+                            <i class="fa-solid fa-comment-medical text-purple-600 mr-1"></i> Special Notes / How Mr. Jha is feeling
+                        </label>
+                        <input type="text" id="vitalNotes" placeholder="e.g. Taken post-lunch, mild fatigue, no swelling..." class="w-full p-3 bg-white border-2 border-slate-300 rounded-lg font-medium text-slate-800 focus:border-blue-600 focus:outline-none">
                     </div>
 
-                    <button type="submit" class="w-full senior-btn bg-brand-900 hover:bg-blue-900 text-white rounded-xl shadow-md flex items-center justify-center gap-2 transition">
-                        <i class="fa-solid fa-floppy-disk text-lg"></i>
-                        <span>Save Vitals Reading & Sync</span>
+                    <!-- Submit Button -->
+                    <button type="submit" id="saveVitalsBtn" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-lg py-3.5 rounded-xl transition shadow-lg flex items-center justify-center gap-2 active:scale-98">
+                        <i class="fa-solid fa-cloud-arrow-up text-xl"></i> Save & Sync Vitals to Family Room
                     </button>
                 </form>
             </div>
-        </section>
 
-        <!-- TAB 3: TRENDS & HISTORY -->
-        <section id="tabTrends" class="space-y-6 hidden">
-            <!-- Vitals Chart Card -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 class="text-base font-bold text-slate-900">Blood Pressure & SpO2 Trends</h3>
-                        <p class="text-xs text-slate-500">Visual trend charts for physician review</p>
-                    </div>
-                </div>
-                <div class="h-64 w-full relative">
-                    <canvas id="vitalsChart"></canvas>
-                </div>
-            </div>
-
-            <!-- History Table -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-4 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
-                    <h3 class="font-bold text-sm text-slate-800">Recorded Vitals History</h3>
-                    <button onclick="exportToCSV()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition">
-                        <i class="fa-solid fa-file-csv"></i>
-                        <span>Export CSV</span>
-                    </button>
-                </div>
-                <div class="divide-y divide-slate-100 max-h-96 overflow-y-auto custom-scrollbar" id="vitalsHistoryContainer">
-                    <!-- History rows injected via JS -->
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 4: DOCTOR REPORT & CLINICAL SUMMARY -->
-        <section id="tabReport" class="space-y-6 hidden">
-            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                <!-- Report Actions Bar -->
-                <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-4 no-print">
-                    <div>
-                        <h2 class="text-xl font-black text-slate-900">Clinical Summary Report</h2>
-                        <p class="text-xs text-slate-500">Formatted for Dr. Dhiraj Kumar (Nephro) & Dr. Sanjiv Kumar (Neuro)</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="window.print()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition">
-                            <i class="fa-solid fa-print"></i>
-                            <span>Print Report</span>
-                        </button>
-                        <button onclick="exportToCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition">
-                            <i class="fa-solid fa-file-excel"></i>
-                            <span>Download CSV Data</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Patient Demographics Header -->
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                    <div>
-                        <span class="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Patient Name</span>
-                        <strong class="text-slate-900 text-sm">Mr. Manu Kumar Jha</strong>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Age / Gender</span>
-                        <strong class="text-slate-900 text-sm">62 Yrs / Male</strong>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">UHID / Hospital</span>
-                        <strong class="text-slate-900 text-sm">8000102849 (Paras HEC)</strong>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Baseline Creatinine</span>
-                        <strong class="text-slate-900 text-sm">1.4 mg/dL (CKD 3)</strong>
-                    </div>
-                </div>
-
-                <!-- Clinical Diagnoses -->
+            <!-- Recent Quick Snapshot Card -->
+            <div class="senior-card p-4 rounded-xl bg-slate-900 text-white flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
-                    <h4 class="font-bold text-sm text-slate-900 mb-2 border-b pb-1">Primary Diagnoses</h4>
-                    <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <li class="bg-amber-50 p-2.5 rounded-lg border border-amber-200 text-amber-950">
-                            <strong>Nephrology:</strong> Solitary Right Kidney with CKD Stage 3. Essential Hypertension.
-                        </li>
-                        <li class="bg-indigo-50 p-2.5 rounded-lg border border-indigo-200 text-indigo-950">
-                            <strong>Neurology:</strong> Recent Posterior Circulation Stroke (rtPA Status 14/08/26), Central Pain Syndrome.
-                        </li>
-                    </ul>
+                    <span class="text-xs uppercase font-extrabold text-blue-400 tracking-wider">LATEST LOGGED READING</span>
+                    <h3 class="text-lg font-bold" id="latestReadingTime">No readings logged yet</h3>
                 </div>
-
-                <!-- Active Prescriptions Master List -->
-                <div>
-                    <h4 class="font-bold text-sm text-slate-900 mb-2 border-b pb-1">Active Prescribed Medications</h4>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="bg-slate-100 text-slate-600 font-bold">
-                                    <th class="p-2 border">Medication & Strength</th>
-                                    <th class="p-2 border">Schedule / Timing</th>
-                                    <th class="p-2 border">Clinical Purpose</th>
-                                    <th class="p-2 border">Prescribing Doctor</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-200 text-slate-800" id="doctorReportMedTable">
-                                <!-- Report rows injected via JS -->
-                            </tbody>
-                        </table>
+                <div class="flex gap-4 text-center">
+                    <div class="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+                        <span class="block text-xs text-slate-400 font-bold">BP</span>
+                        <span id="latestBPVal" class="text-xl font-extrabold text-blue-300">--/--</span>
+                    </div>
+                    <div class="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+                        <span class="block text-xs text-slate-400 font-bold">SpO2</span>
+                        <span id="latestSpO2Val" class="text-xl font-extrabold text-emerald-400">--%</span>
+                    </div>
+                    <div class="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+                        <span class="block text-xs text-slate-400 font-bold">PULSE</span>
+                        <span id="latestPulseVal" class="text-xl font-extrabold text-rose-400">-- BPM</span>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 5: SYNC & SETTINGS -->
-        <section id="tabSettings" class="space-y-6 hidden">
-            <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-                <div>
-                    <h3 class="text-lg font-black text-slate-900">Multi-Device Sync Settings</h3>
-                    <p class="text-xs text-slate-500">Configure room synchronization across family phones</p>
-                </div>
-
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                    <label class="block text-xs font-bold text-slate-700">Family Sync Room Code</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="settingsRoomInput" value="JHA-FAMILY" class="w-full bg-white border border-slate-300 rounded-xl p-3 font-mono font-bold text-base uppercase focus:ring-2 focus:ring-brand-500 outline-none">
-                        <button onclick="updateRoomCodeFromSettings()" class="px-5 py-3 bg-brand-900 text-white font-bold rounded-xl text-xs flex-shrink-0 hover:bg-blue-900 transition">
-                            Apply & Connect
+        <!-- SECTION 3: HISTORY & EXPORT -->
+        <section id="sectionHistory" class="hidden space-y-5">
+            <div class="senior-card p-5 rounded-xl bg-white space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3">
+                    <div>
+                        <h2 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Vitals History Log
+                        </h2>
+                        <p class="text-xs text-slate-500 font-medium">Complete record of Mr. Manu Kumar Jha's health metrics</p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <button id="exportCsvBtn" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs md:text-sm px-4 py-2.5 rounded-lg transition flex items-center gap-2 shadow">
+                            <i class="fa-solid fa-file-csv text-lg"></i> Export CSV for Doctor Visit
                         </button>
                     </div>
-                    <p class="text-[11px] text-slate-500">
-                        * Use this exact same room code on all phones. Changes sync peer-to-peer automatically while keeping an offline backup on your device.
-                    </p>
                 </div>
 
-                <!-- Backup & Data Control -->
-                <div class="border-t pt-4 space-y-3">
-                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Local Storage Diagnostics</h4>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="downloadBackupJSON()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-2 transition">
-                            <i class="fa-solid fa-download"></i>
-                            <span>Backup All Data (JSON)</span>
-                        </button>
-                        <button onclick="resetAppToDefault()" class="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs flex items-center gap-2 transition">
-                            <i class="fa-solid fa-trash-can"></i>
-                            <span>Reset Local Cache</span>
-                        </button>
-                    </div>
+                <!-- History Table Container -->
+                <div class="overflow-x-auto border rounded-xl border-slate-200">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-800 text-white text-xs uppercase font-extrabold tracking-wider">
+                                <th class="p-3">Date & Time</th>
+                                <th class="p-3">Blood Pressure</th>
+                                <th class="p-3">SpO2</th>
+                                <th class="p-3">Pulse</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Notes</th>
+                                <th class="p-3 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vitalsHistoryTableBody" class="divide-y divide-slate-200 text-sm font-semibold text-slate-800">
+                            <!-- Dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="noHistoryMsg" class="text-center py-8 text-slate-500 font-bold hidden">
+                    <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-300 block"></i>
+                    No vital records found for this room yet.
                 </div>
             </div>
         </section>
 
     </main>
 
-    <!-- Room Modal -->
-    <div id="roomModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
-            <div class="flex items-center justify-between border-b pb-3">
-                <h3 class="font-bold text-lg text-slate-900">Family Sync Room</h3>
-                <button onclick="closeRoomModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+    <!-- Modal: Add New Custom Medication -->
+    <div id="addMedModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 border-2 border-slate-300 shadow-2xl">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-capsules text-blue-600"></i> Add Prescribed Medication
+                </h3>
+                <button id="closeAddMedModalBtn" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
             </div>
-            <p class="text-xs text-slate-600 leading-relaxed">
-                Enter your shared <strong>Family Room Code</strong> to connect phones. All vital logs and checklists save locally first, then sync across devices.
-            </p>
-            <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Room Code</label>
-                <input type="text" id="modalRoomInput" value="JHA-FAMILY" class="w-full bg-slate-100 border border-slate-300 rounded-xl p-3 font-mono font-bold text-base text-center uppercase focus:ring-2 focus:ring-brand-500 outline-none">
-            </div>
-            <button onclick="saveRoomCodeFromModal()" class="w-full senior-btn bg-brand-900 hover:bg-blue-900 text-white rounded-xl shadow-md">
-                Connect Device
-            </button>
-        </div>
-    </div>
-
-    <!-- Custom Medication Modal -->
-    <div id="addMedModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
-        <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
-            <div class="flex items-center justify-between border-b pb-3">
-                <h3 class="font-bold text-lg text-slate-900">Add Prescribed Medication</h3>
-                <button onclick="closeAddMedModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <form onsubmit="handleCustomMedSubmit(event)" class="space-y-3">
+            <form id="addMedForm" class="space-y-3">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Medication Name & Strength</label>
-                    <input type="text" id="customMedName" placeholder="e.g. Telmisartan 40mg" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">Medicine Name & Dosage</label>
+                    <input type="text" id="newMedName" required placeholder="e.g. Nephro-Vite 1 tab" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-900">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Clinical Purpose</label>
-                    <input type="text" id="customMedDetail" placeholder="e.g. Blood Pressure Management" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">Specialty / Category</label>
+                    <select id="newMedCategory" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-900">
+                        <option value="Nephrology">Nephrology</option>
+                        <option value="Neurology">Neurology</option>
+                        <option value="Gastro/General">Gastro / General</option>
+                    </select>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Schedule Slot</label>
-                        <select id="customMedSlot" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-brand-500 outline-none">
-                            <option value="morning">🌅 Morning</option>
-                            <option value="afternoon">☀️ Afternoon</option>
-                            <option value="evening">🌆 Evening</option>
-                            <option value="night">🌙 Night</option>
-                            <option value="sos">🚨 SOS / As Needed</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Prescribed By</label>
-                        <input type="text" id="customMedDoctor" placeholder="Doctor Name" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Dosing Schedule</label>
+                    <div class="grid grid-cols-2 gap-2 text-xs font-bold text-slate-800">
+                        <label class="flex items-center gap-2 bg-slate-100 p-2 rounded border">
+                            <input type="checkbox" id="scheduleMorn" class="checkbox-large"> Morning 🌅
+                        </label>
+                        <label class="flex items-center gap-2 bg-slate-100 p-2 rounded border">
+                            <input type="checkbox" id="scheduleAft" class="checkbox-large"> Afternoon ☀️
+                        </label>
+                        <label class="flex items-center gap-2 bg-slate-100 p-2 rounded border">
+                            <input type="checkbox" id="scheduleNight" class="checkbox-large"> Night 🌙
+                        </label>
+                        <label class="flex items-center gap-2 bg-slate-100 p-2 rounded border">
+                            <input type="checkbox" id="scheduleSOS" class="checkbox-large"> SOS 🆘
+                        </label>
                     </div>
                 </div>
-                <button type="submit" class="w-full senior-btn bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md mt-2">
-                    Save Prescribed Medication
-                </button>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase">Special Instructions</label>
+                    <input type="text" id="newMedInstructions" placeholder="e.g. Before breakfast with water" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-sm">
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" id="cancelAddMedBtn" class="px-4 py-2 bg-slate-200 text-slate-800 font-bold rounded-lg text-sm">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-extrabold rounded-lg text-sm shadow">Save Medication</button>
+                </div>
             </form>
         </div>
     </div>
 
-    <!-- Toast Notification Overlay -->
-    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none no-print"></div>
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border-2 border-blue-500 font-bold text-sm flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toastMessage">Updates saved!</span>
+    </div>
 
-    <script>
-        // Default Master Medications Array
-        const MASTER_MEDICATIONS = [
-            // Morning (8:00 AM)
-            { id: 'm1', slot: 'morning', time: '8:00 AM', name: 'Pantocid 40mg', detail: 'Pantoprazole - Stomach Acid Protection', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
-            { id: 'm2', slot: 'morning', time: '8:00 AM', name: 'Renolog 381mg', detail: 'Alpha Ketoanalogue - Solitary Kidney Nitrogen Protection', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
-            { id: 'm3', slot: 'morning', time: '8:00 AM', name: 'Sobisis 500mg', detail: 'Sodium Bicarbonate - Metabolic Acidosis Control', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
+    <!-- Firebase Standard JS App & Firestore Import -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-            // Afternoon (1:00 PM)
-            { id: 'a1', slot: 'afternoon', time: '1:00 PM', name: 'Renolog 381mg', detail: 'Alpha Ketoanalogue - Solitary Kidney Amino Acids', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
+        // Global environment fallback or injected Firebase configuration
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'caresync-manu-jha';
+        let firebaseConfig = {
+            apiKey: "AIzaSyDummyKeyForCareSyncApp12345",
+            authDomain: "caresync-app.firebaseapp.com",
+            projectId: "caresync-app",
+            storageBucket: "caresync-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
 
-            // Evening (6:00 PM)
-            { id: 'e1', slot: 'evening', time: '6:00 PM', name: 'Amlong 5mg', detail: 'Amlodipine - BP Control (Target <130/80)', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
-            { id: 'e2', slot: 'evening', time: '6:00 PM', name: 'Amantrel 100mg', detail: 'Amantadine - Post-Stroke Fatigue & Central Pain', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            try {
+                firebaseConfig = JSON.parse(__firebase_config);
+            } catch(e) {
+                console.error("Error parsing __firebase_config:", e);
+            }
+        }
 
-            // Night (9:00 PM)
-            { id: 'n1', slot: 'night', time: '9:00 PM', name: 'Silotime-D 8mg+0.5mg', detail: 'Silodosin + Dutasteride - Prostate & Urine Flow', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
-            { id: 'n2', slot: 'night', time: '9:00 PM', name: 'Renolog 381mg', detail: 'Alpha Ketoanalogue - Kidney Amino Acid Protection', doctor: 'Dr. Dhiraj Kumar (Nephro)' },
-            { id: 'n3', slot: 'night', time: '9:00 PM', name: 'Rozavel A 10/75mg', detail: 'Rosuvastatin + Aspirin - Stroke Prevention & Cholesterol', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
-            { id: 'n4', slot: 'night', time: '9:00 PM', name: 'Amantrel 100mg', detail: 'Amantadine - Neurological Central Pain Syndrome', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
-            { id: 'n5', slot: 'night', time: '9:00 PM', name: 'Levipil XR 500mg', detail: 'Levetiracetam - Post-Stroke Seizure Prophylaxis', doctor: 'Dr. Sanjiv Kumar (Neuro)' },
+        // Initialize Firebase SDK
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-            // SOS Pain Management
-            { id: 's1', slot: 'sos', time: 'SOS', name: 'T. Calpol-T', detail: 'Paracetamol + Tramadol - Safe Kidney Pain Relief (NO NSAIDs)', doctor: 'Dr. Dhiraj Kumar (Nephro)' }
+        // Pre-configured prescribed medications for Mr. Manu Kumar Jha
+        const DEFAULT_MEDICATIONS = [
+            {
+                id: 'renolog',
+                name: 'Renolog (Alpha Ketoanalogues)',
+                category: 'Nephrology',
+                schedule: { morning: true, afternoon: false, night: true, sos: false },
+                instructions: 'Take during meals (Nephrology consult)'
+            },
+            {
+                id: 'sobisis',
+                name: 'Sobisis 500mg (Sodium Bicarbonate)',
+                category: 'Nephrology',
+                schedule: { morning: true, afternoon: true, night: true, sos: false },
+                instructions: 'Take with full glass of water'
+            },
+            {
+                id: 'calpol_t',
+                name: 'Calpol-T',
+                category: 'Gastro/General',
+                schedule: { morning: false, afternoon: false, night: false, sos: true },
+                instructions: 'Take SOS for severe pain / fever'
+            },
+            {
+                id: 'silotime_d',
+                name: 'Silotime-D 8',
+                category: 'Nephrology',
+                schedule: { morning: false, afternoon: false, night: true, sos: false },
+                instructions: 'Take strictly after dinner'
+            },
+            {
+                id: 'pantocid',
+                name: 'Pantocid 40mg',
+                category: 'Gastro/General',
+                schedule: { morning: true, afternoon: false, night: false, sos: false },
+                instructions: 'Take 30 minutes BEFORE breakfast'
+            },
+            {
+                id: 'rozavel_a',
+                name: 'Rozavel A 10/75',
+                category: 'Neurology',
+                schedule: { morning: false, afternoon: false, night: true, sos: false },
+                instructions: 'Take after night dinner (Cardio/Neuro protection)'
+            },
+            {
+                id: 'amantrel',
+                name: 'Amantrel 100mg',
+                category: 'Neurology',
+                schedule: { morning: true, afternoon: true, night: false, sos: false },
+                instructions: 'Neurology consult prescription'
+            },
+            {
+                id: 'amlong',
+                name: 'Amlong 5mg',
+                category: 'Neurology',
+                schedule: { morning: true, afternoon: false, night: false, sos: false },
+                instructions: 'Morning blood pressure control'
+            },
+            {
+                id: 'levipil_xr',
+                name: 'Levipil XR 500mg',
+                category: 'Neurology',
+                schedule: { morning: true, afternoon: false, night: true, sos: false },
+                instructions: 'Neurology consult - Do not crush tab'
+            }
         ];
 
-        // Global State Variables
-        let roomCode = localStorage.getItem('caresync_roomCode') || 'JHA-FAMILY';
-        let selectedDate = new Date().toISOString().split('T')[0];
-        let activeMedsList = [...MASTER_MEDICATIONS];
-        let medLogs = JSON.parse(localStorage.getItem('caresync_medLogs') || '{}');
-        let vitalsLogs = JSON.parse(localStorage.getItem('caresync_vitalsLogs') || '[]');
-        let customMeds = JSON.parse(localStorage.getItem('caresync_customMeds') || '[]');
-        let chartInstance = null;
-        let gun = null;
+        let activeRoomCode = getQueryParam('room') || localStorage.getItem('caresync_room') || 'JHA-FAMILY';
+        let selectedDateStr = new Date().toISOString().split('T')[0];
+        let currentUser = null;
+        let activeFilter = 'ALL';
 
-        // Combine master meds with user-added custom meds
-        function updateActiveMedsList() {
-            activeMedsList = [...MASTER_MEDICATIONS, ...customMeds];
-        }
+        // In-memory data store with localStorage fallback
+        let medicationsList = JSON.parse(localStorage.getItem('caresync_meds_master')) || DEFAULT_MEDICATIONS;
+        let dailyMedStatus = {}; // { medId: { morning: true/false, afternoon, night, sos } }
+        let vitalsHistory = JSON.parse(localStorage.getItem(`caresync_vitals_cache_${activeRoomCode}`)) || [];
 
-        // Save data directly to LocalStorage (Guarantees persistence across reloads)
-        function saveToLocalStorage() {
-            localStorage.setItem('caresync_roomCode', roomCode);
-            localStorage.setItem('caresync_medLogs', JSON.stringify(medLogs));
-            localStorage.setItem('caresync_vitalsLogs', JSON.stringify(vitalsLogs));
-            localStorage.setItem('caresync_customMeds', JSON.stringify(customMeds));
-        }
+        let unsubscribeMedsDoc = null;
+        let unsubscribeVitalsCollection = null;
 
-        // Initialize Peer-to-Peer Cloud Sync via Gun.js
-        function initGunSync() {
+        // UI Element References
+        const roomCodeInput = document.getElementById('roomCodeInput');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const copyRoomBtn = document.getElementById('copyRoomBtn');
+        const statusRibbon = document.getElementById('statusRibbon');
+        const statusText = document.getElementById('statusText');
+        const medDateInput = document.getElementById('medDateInput');
+        const medicationListEl = document.getElementById('medicationList');
+        const medAdherencePercent = document.getElementById('medAdherencePercent');
+        const medProgressBar = document.getElementById('medProgressBar');
+        const medCountText = document.getElementById('medCountText');
+        const vitalsForm = document.getElementById('vitalsForm');
+        const vitalsHistoryTableBody = document.getElementById('vitalsHistoryTableBody');
+        const noHistoryMsg = document.getElementById('noHistoryMsg');
+
+        async function authenticateUser() {
             try {
-                if (typeof Gun !== 'undefined') {
-                    gun = Gun({
-                        peers: [
-                            'https://gun-manhattan.herokuapp.com/gun',
-                            'https://peer.wallngr.com/gun'
-                        ]
-                    });
-
-                    const roomNode = gun.get('caresync_v2_rooms').get(roomCode);
-
-                    // Listen to incoming remote changes from other family devices
-                    roomNode.on((data) => {
-                        if (data) {
-                            if (data.medLogsStr) {
-                                try {
-                                    const remoteMedLogs = JSON.parse(data.medLogsStr);
-                                    medLogs = { ...medLogs, ...remoteMedLogs };
-                                } catch(e){}
-                            }
-                            if (data.vitalsStr) {
-                                try {
-                                    const remoteVitals = JSON.parse(data.vitalsStr);
-                                    vitalsLogs = mergeVitalsArrays(vitalsLogs, remoteVitals);
-                                } catch(e){}
-                            }
-                            if (data.customMedsStr) {
-                                try {
-                                    customMeds = JSON.parse(data.customMedsStr);
-                                    updateActiveMedsList();
-                                } catch(e){}
-                            }
-                            saveToLocalStorage();
-                            renderUI();
-                            updateSyncBadge(true);
-                        }
-                    });
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = cred.user;
+                } else {
+                    const cred = await signInAnonymously(auth);
+                    currentUser = cred.user;
                 }
+                updateConnectionStatus(true, `Connected & Syncing Realtime with Cloud (Room: ${activeRoomCode})`);
+                setupFirestoreListeners();
             } catch (err) {
-                console.warn("Gun.js sync warning:", err);
-                updateSyncBadge(false);
-            }
-        }
-
-        function publishToGun() {
-            saveToLocalStorage();
-            if (gun) {
+                console.warn("Auth initialization error:", err);
                 try {
-                    const roomNode = gun.get('caresync_v2_rooms').get(roomCode);
-                    roomNode.put({
-                        medLogsStr: JSON.stringify(medLogs),
-                        vitalsStr: JSON.stringify(vitalsLogs),
-                        customMedsStr: JSON.stringify(customMeds),
-                        updatedAt: new Date().toISOString()
-                    });
-                    updateSyncBadge(true);
-                } catch(e) {
-                    updateSyncBadge(false);
+                    const cred = await signInAnonymously(auth);
+                    currentUser = cred.user;
+                    updateConnectionStatus(true, `Connected & Syncing (Room: ${activeRoomCode})`);
+                    setupFirestoreListeners();
+                } catch(e2) {
+                    console.error("Firebase auth failed, falling back to local mode:", e2);
+                    updateConnectionStatus(false, `Offline / Local Mode (Room: ${activeRoomCode})`);
                 }
             }
         }
 
-        function updateSyncBadge(isCloudSynced) {
-            const text = document.getElementById('syncStatusText');
-            if (text) {
-                text.textContent = isCloudSynced ? "Saved Locally & Synced" : "Saved Locally";
+        // Helper to extract query parameter
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // Visual connection status bar updater
+        function updateConnectionStatus(isOnline, message) {
+            if (isOnline) {
+                statusRibbon.className = "bg-emerald-700 text-white text-xs md:text-sm font-semibold px-4 py-1.5 text-center flex items-center justify-center gap-2 transition-colors duration-300";
+                statusText.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-pulse"></span> ${message}`;
+            } else {
+                statusRibbon.className = "bg-amber-700 text-white text-xs md:text-sm font-semibold px-4 py-1.5 text-center flex items-center justify-center gap-2 transition-colors duration-300";
+                statusText.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-300"></span> ${message}`;
             }
         }
 
-        function mergeVitalsArrays(local, remote) {
-            const map = new Map();
-            local.forEach(item => map.set(item.id, item));
-            remote.forEach(item => map.set(item.id, item));
-            return Array.from(map.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        function setupFirestoreListeners() {
+            if (!currentUser) return;
+
+            const cleanRoom = activeRoomCode.trim().toUpperCase();
+            
+            // Unsubscribe existing listeners if any
+            if (unsubscribeMedsDoc) unsubscribeMedsDoc();
+            if (unsubscribeVitalsCollection) unsubscribeVitalsCollection();
+
+            // RULE 1 Strict Path: /artifacts/{appId}/public/data/med_logs/{cleanRoom}_{selectedDateStr}
+            const medDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'med_logs', `${cleanRoom}_${selectedDateStr}`);
+
+            unsubscribeMedsDoc = onSnapshot(medDocRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    dailyMedStatus = data.status || {};
+                    if (data.customMeds && Array.isArray(data.customMeds)) {
+                        // Merge any custom medicines added by family members
+                        data.customMeds.forEach(cMed => {
+                            if (!medicationsList.some(m => m.id === cMed.id)) {
+                                medicationsList.push(cMed);
+                            }
+                        });
+                        localStorage.setItem('caresync_meds_master', JSON.stringify(medicationsList));
+                    }
+                } else {
+                    dailyMedStatus = {};
+                }
+                renderMedications();
+            }, (error) => {
+                console.error("Meds listener error:", error);
+                updateConnectionStatus(false, "Sync Error - Using Local Cache");
+            });
+
+            // RULE 1 Strict Path: /artifacts/{appId}/public/data/vitals_logs/{cleanRoom}_vitals
+            const vitalsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'vitals_logs', `${cleanRoom}_vitals`);
+
+            unsubscribeVitalsCollection = onSnapshot(vitalsDocRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    vitalsHistory = data.records || [];
+                    localStorage.setItem(`caresync_vitals_cache_${activeRoomCode}`, JSON.stringify(vitalsHistory));
+                } else {
+                    vitalsHistory = [];
+                }
+                renderVitalsHistory();
+                updateLatestVitalsCard();
+            }, (error) => {
+                console.error("Vitals snapshot error:", error);
+            });
         }
 
-        function toggleMed(medId) {
-            if (!medLogs[selectedDate]) {
-                medLogs[selectedDate] = {};
-            }
+        function renderMedications() {
+            medicationListEl.innerHTML = '';
 
-            const current = medLogs[selectedDate][medId]?.taken || false;
-            const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const filteredMeds = medicationsList.filter(m => {
+                if (activeFilter === 'ALL') return true;
+                return m.category === activeFilter;
+            });
 
-            medLogs[selectedDate][medId] = {
-                taken: !current,
-                time: !current ? nowTime : null
-            };
+            let totalCheckboxes = 0;
+            let checkedCount = 0;
 
-            publishToGun();
-            renderMedsUI();
-            showToast(!current ? "Prescription marked as taken" : "Prescription unchecked");
-        }
+            filteredMeds.forEach(med => {
+                const status = dailyMedStatus[med.id] || {};
 
-        function renderMedsUI() {
-            const slots = ['morning', 'afternoon', 'evening', 'night', 'sos'];
-            const dayLogs = medLogs[selectedDate] || {};
-            let totalMeds = 0;
-            let takenCount = 0;
+                // Count total scheduled items
+                if (med.schedule.morning) { totalCheckboxes++; if (status.morning) checkedCount++; }
+                if (med.schedule.afternoon) { totalCheckboxes++; if (status.afternoon) checkedCount++; }
+                if (med.schedule.night) { totalCheckboxes++; if (status.night) checkedCount++; }
+                if (med.schedule.sos) { totalCheckboxes++; if (status.sos) checkedCount++; }
 
-            slots.forEach(slot => {
-                const container = document.getElementById(`list${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
-                if (!container) return;
+                const card = document.createElement('div');
+                card.className = "senior-card p-4 rounded-xl bg-white border-2 border-slate-300 flex flex-col justify-between hover:border-blue-400 transition";
 
-                const medsInSlot = activeMedsList.filter(m => m.slot === slot);
-                container.innerHTML = '';
+                let catBadgeColor = "bg-slate-200 text-slate-800";
+                if (med.category === 'Nephrology') catBadgeColor = "bg-purple-100 text-purple-800 border-purple-300";
+                if (med.category === 'Neurology') catBadgeColor = "bg-blue-100 text-blue-900 border-blue-300";
+                if (med.category === 'Gastro/General') catBadgeColor = "bg-amber-100 text-amber-900 border-amber-300";
 
-                medsInSlot.forEach(med => {
-                    if (slot !== 'sos') totalMeds++;
-                    const isTaken = dayLogs[med.id]?.taken || false;
-                    const takenTime = dayLogs[med.id]?.time;
-                    if (isTaken && slot !== 'sos') takenCount++;
-
-                    const card = document.createElement('div');
-                    card.className = `p-3.5 rounded-xl border flex items-center justify-between transition-all ${
-                        isTaken 
-                            ? 'bg-emerald-50 border-emerald-300 text-emerald-950' 
-                            : 'bg-white border-slate-200 text-slate-800 shadow-sm hover:border-slate-300'
-                    }`;
-
-                    card.innerHTML = `
-                        <div class="flex items-center space-x-3.5">
-                            <button onclick="toggleMed('${med.id}')" class="focus:outline-none touch-target flex items-center justify-center">
-                                <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold border-2 transition ${
-                                    isTaken 
-                                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' 
-                                        : 'border-slate-300 text-transparent hover:border-brand-500'
-                                }">
-                                    <i class="fa-solid fa-check"></i>
-                                </div>
-                            </button>
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <h4 class="font-bold text-sm sm:text-base ${isTaken ? 'line-through text-emerald-800' : 'text-slate-900'}">${med.name}</h4>
-                                    ${isTaken ? `<span class="bg-emerald-200 text-emerald-900 text-[10px] font-bold px-2 py-0.5 rounded-full">${takenTime || 'Taken'}</span>` : ''}
-                                </div>
-                                <p class="text-xs text-slate-500 font-medium">${med.detail}</p>
-                                <span class="text-[10px] font-semibold text-slate-400"><i class="fa-solid fa-user-doctor text-[9px]"></i> ${med.doctor}</span>
-                            </div>
+                card.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-start gap-2">
+                            <h3 class="font-extrabold text-slate-900 text-base md:text-lg leading-snug">${escapeHtml(med.name)}</h3>
+                            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border uppercase tracking-wider ${catBadgeColor}">
+                                ${escapeHtml(med.category)}
+                            </span>
                         </div>
-                    `;
-                    container.appendChild(card);
+                        <p class="text-xs text-slate-600 font-medium italic">
+                            <i class="fa-solid fa-circle-info text-blue-500 mr-1"></i>${escapeHtml(med.instructions || 'Prescribed Consult')}
+                        </p>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-slate-200 grid grid-cols-2 gap-2 text-xs font-extrabold">
+                        ${med.schedule.morning ? `
+                            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-300 hover:bg-blue-50 cursor-pointer">
+                                <input type="checkbox" data-med="${med.id}" data-time="morning" ${status.morning ? 'checked' : ''} class="checkbox-large med-check">
+                                <span>🌅 Morning</span>
+                            </label>
+                        ` : ''}
+                        
+                        ${med.schedule.afternoon ? `
+                            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-300 hover:bg-blue-50 cursor-pointer">
+                                <input type="checkbox" data-med="${med.id}" data-time="afternoon" ${status.afternoon ? 'checked' : ''} class="checkbox-large med-check">
+                                <span>☀️ Afternoon</span>
+                            </label>
+                        ` : ''}
+
+                        ${med.schedule.night ? `
+                            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-300 hover:bg-blue-50 cursor-pointer">
+                                <input type="checkbox" data-med="${med.id}" data-time="night" ${status.night ? 'checked' : ''} class="checkbox-large med-check">
+                                <span>🌙 Night</span>
+                            </label>
+                        ` : ''}
+
+                        ${med.schedule.sos ? `
+                            <label class="flex items-center gap-2 p-2 rounded-lg bg-rose-50 border border-rose-200 hover:bg-rose-100 cursor-pointer">
+                                <input type="checkbox" data-med="${med.id}" data-time="sos" ${status.sos ? 'checked' : ''} class="checkbox-large med-check">
+                                <span class="text-rose-800">🆘 SOS</span>
+                            </label>
+                        ` : ''}
+                    </div>
+                `;
+                medicationListEl.appendChild(card);
+            });
+
+            // Update progress statistics
+            const percent = totalCheckboxes > 0 ? Math.round((checkedCount / totalCheckboxes) * 100) : 0;
+            medAdherencePercent.innerText = `${percent}%`;
+            medProgressBar.style.width = `${percent}%`;
+            medCountText.innerText = `${checkedCount} of ${totalCheckboxes} doses checked`;
+
+            // Attach checkbox event listeners
+            document.querySelectorAll('.med-check').forEach(chk => {
+                chk.addEventListener('change', async (e) => {
+                    const medId = e.target.getAttribute('data-med');
+                    const timeKey = e.target.getAttribute('data-time');
+                    const isChecked = e.target.checked;
+
+                    if (!dailyMedStatus[medId]) dailyMedStatus[medId] = {};
+                    dailyMedStatus[medId][timeKey] = isChecked;
+
+                    await saveMedicationStatus();
                 });
             });
+        }
 
-            const badge = document.getElementById('medCompletionBadge');
-            if (badge) {
-                badge.textContent = `${takenCount} / ${totalMeds} Taken`;
-                badge.className = takenCount === totalMeds && totalMeds > 0
-                    ? "text-sm font-black bg-emerald-600 text-white px-3.5 py-1 rounded-full shadow-sm" 
-                    : "text-sm font-black bg-brand-900 text-white px-3.5 py-1 rounded-full shadow-sm";
+        async function saveMedicationStatus() {
+            if (!currentUser) return;
+            const cleanRoom = activeRoomCode.trim().toUpperCase();
+            const medDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'med_logs', `${cleanRoom}_${selectedDateStr}`);
+
+            try {
+                await setDoc(medDocRef, {
+                    roomCode: cleanRoom,
+                    date: selectedDateStr,
+                    status: dailyMedStatus,
+                    customMeds: medicationsList.filter(m => !DEFAULT_MEDICATIONS.some(dm => dm.id === m.id)),
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+                showToast("Medication status updated across room!");
+            } catch (err) {
+                console.error("Error saving medication status:", err);
+                showToast("Saved locally (offline mode)");
             }
         }
 
-        function handleVitalsSubmit(e) {
+        // Calculate BP health status category
+        function getBPCategory(sys, dia) {
+            if (!sys || !dia) return { label: 'Enter readings above', color: 'bg-slate-200 text-slate-700' };
+            if (sys < 120 && dia < 80) return { label: 'Normal Blood Pressure', color: 'bg-emerald-100 text-emerald-800 border border-emerald-300' };
+            if (sys >= 120 && sys <= 129 && dia < 80) return { label: 'Elevated BP', color: 'bg-amber-100 text-amber-800 border border-amber-300' };
+            if ((sys >= 130 && sys <= 139) || (dia >= 80 && dia <= 89)) return { label: 'Stage 1 Hypertension', color: 'bg-orange-100 text-orange-900 border border-orange-300' };
+            if (sys >= 140 || dia >= 90) return { label: 'Stage 2 Hypertension Warning', color: 'bg-rose-100 text-rose-900 border border-rose-400 font-bold' };
+            return { label: 'Recorded', color: 'bg-blue-100 text-blue-800' };
+        }
+
+        // Live input listeners for BP and SpO2 categories
+        const vitalSysInput = document.getElementById('vitalSys');
+        const vitalDiaInput = document.getElementById('vitalDia');
+        const vitalSpO2Input = document.getElementById('vitalSpO2');
+        const bpCategoryTag = document.getElementById('bpCategoryTag');
+        const spo2CategoryTag = document.getElementById('spo2CategoryTag');
+
+        function updateLiveCategories() {
+            const sys = parseInt(vitalSysInput.value);
+            const dia = parseInt(vitalDiaInput.value);
+            const bpRes = getBPCategory(sys, dia);
+            bpCategoryTag.innerText = bpRes.label;
+            bpCategoryTag.className = `text-center py-1 text-xs font-bold rounded-md mt-1 ${bpRes.color}`;
+
+            const spo2 = parseInt(vitalSpO2Input.value);
+            if (spo2) {
+                if (spo2 >= 95) {
+                    spo2CategoryTag.innerText = `Normal Oxygen (${spo2}%)`;
+                    spo2CategoryTag.className = 'text-center py-1 text-xs font-bold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 mt-1';
+                } else {
+                    spo2CategoryTag.innerText = `Low Oxygen Warning (${spo2}%) - Contact Doctor`;
+                    spo2CategoryTag.className = 'text-center py-1 text-xs font-bold rounded-md bg-rose-100 text-rose-900 border border-rose-300 mt-1';
+                }
+            }
+        }
+
+        vitalSysInput.addEventListener('input', updateLiveCategories);
+        vitalDiaInput.addEventListener('input', updateLiveCategories);
+        vitalSpO2Input.addEventListener('input', updateLiveCategories);
+
+        vitalsForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const slot = document.getElementById('vitalSlot').value;
-            const sys = parseInt(document.getElementById('vitalSys').value);
-            const dia = parseInt(document.getElementById('vitalDia').value);
+            if (!currentUser) {
+                showToast("Please wait, connecting to server...");
+                return;
+            }
+
+            const sys = parseInt(vitalSysInput.value);
+            const dia = parseInt(vitalDiaInput.value);
+            const spo2 = parseInt(vitalSpO2Input.value);
             const pulse = parseInt(document.getElementById('vitalPulse').value);
-            const spo2 = parseInt(document.getElementById('vitalSpO2').value);
             const notes = document.getElementById('vitalNotes').value;
 
-            const newEntry = {
-                id: Date.now().toString(),
-                timestamp: new Date().toISOString(),
-                dateStr: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                slot,
-                sys,
-                dia,
-                pulse,
-                spo2,
-                notes
+            const now = new Date();
+            const newRecord = {
+                id: 'v_' + Date.now(),
+                timestamp: now.toISOString(),
+                dateStr: now.toLocaleDateString(),
+                timeStr: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                systolic: sys,
+                diastolic: dia,
+                spo2: spo2,
+                pulse: pulse,
+                notes: notes,
+                recordedBy: 'Family Caregiver'
             };
 
-            vitalsLogs.unshift(newEntry);
-            
-            // Clear Inputs
-            document.getElementById('vitalSys').value = '';
-            document.getElementById('vitalDia').value = '';
-            document.getElementById('vitalPulse').value = '';
-            document.getElementById('vitalSpO2').value = '';
-            document.getElementById('vitalNotes').value = '';
+            vitalsHistory.unshift(newRecord);
 
-            publishToGun();
-            renderVitalsUI();
-            showToast("Vitals logged & saved locally!");
-        }
+            const cleanRoom = activeRoomCode.trim().toUpperCase();
+            const vitalsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'vitals_logs', `${cleanRoom}_vitals`);
 
-        function renderVitalsUI() {
-            renderChart();
-            renderHistoryTable();
-        }
-
-        function renderChart() {
-            const ctx = document.getElementById('vitalsChart');
-            if (!ctx) return;
-
-            const recentLogs = [...vitalsLogs].slice(0, 10).reverse();
-            const labels = recentLogs.map(l => l.dateStr || 'Reading');
-            const sysData = recentLogs.map(l => l.sys);
-            const diaData = recentLogs.map(l => l.dia);
-            const spo2Data = recentLogs.map(l => l.spo2);
-
-            if (chartInstance) {
-                chartInstance.destroy();
+            try {
+                await setDoc(vitalsDocRef, {
+                    roomCode: cleanRoom,
+                    records: vitalsHistory,
+                    updatedAt: new Date().toISOString()
+                });
+                showToast("Vitals successfully logged & synced!");
+                vitalsForm.reset();
+                updateLiveCategories();
+            } catch (err) {
+                console.error("Error saving vitals:", err);
+                showToast("Saved to local offline cache");
+                localStorage.setItem(`caresync_vitals_cache_${activeRoomCode}`, JSON.stringify(vitalsHistory));
+                renderVitalsHistory();
+                updateLatestVitalsCard();
             }
+        });
 
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Systolic BP (Top)',
-                            data: sysData,
-                            borderColor: '#dc2626',
-                            backgroundColor: 'rgba(220, 38, 38, 0.08)',
-                            borderWidth: 2.5,
-                            fill: true,
-                            tension: 0.3
-                        },
-                        {
-                            label: 'Diastolic BP (Low)',
-                            data: diaData,
-                            borderColor: '#2563eb',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderDash: [4, 4],
-                            tension: 0.3
-                        },
-                        {
-                            label: 'Oxygen SpO2 %',
-                            data: spo2Data,
-                            borderColor: '#16a34a',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2.5,
-                            tension: 0.3
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
-                    },
-                    scales: {
-                        y: { min: 60, max: 180 }
-                    }
-                }
-            });
-        }
-
-        function renderHistoryTable() {
-            const container = document.getElementById('vitalsHistoryContainer');
-            if (!container) return;
-
-            container.innerHTML = '';
-            if (vitalsLogs.length === 0) {
-                container.innerHTML = `<p class="p-5 text-xs text-slate-400 text-center">No vitals logged yet. Use the "Log Vitals" tab to add your first reading.</p>`;
+        function renderVitalsHistory() {
+            vitalsHistoryTableBody.innerHTML = '';
+            if (!vitalsHistory || vitalsHistory.length === 0) {
+                noHistoryMsg.classList.remove('hidden');
                 return;
+            } else {
+                noHistoryMsg.classList.add('hidden');
             }
 
-            vitalsLogs.forEach(item => {
-                const isBpHigh = item.sys >= 140 || item.dia >= 90;
-                const isSpO2Low = item.spo2 < 95;
-
-                const row = document.createElement('div');
-                row.className = "p-3.5 flex items-center justify-between hover:bg-slate-50 transition";
-                row.innerHTML = `
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xs font-bold text-slate-900">${item.dateStr}</span>
-                            <span class="text-[10px] bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded-full">${item.slot}</span>
-                        </div>
-                        <div class="text-xs text-slate-500 mt-1">
-                            Pulse: <strong class="text-slate-700">${item.pulse} BPM</strong> ${item.notes ? `| <em>${item.notes}</em>` : ''}
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-3 text-right">
-                        <div>
-                            <span class="text-sm font-black ${isBpHigh ? 'text-red-600' : 'text-slate-900'}">${item.sys}/${item.dia}</span>
-                            <span class="text-[10px] block font-bold text-slate-400">BP mmHg</span>
-                        </div>
-                        <div class="border-l pl-3 border-slate-200">
-                            <span class="text-sm font-black ${isSpO2Low ? 'text-amber-600' : 'text-emerald-700'}">${item.spo2}%</span>
-                            <span class="text-[10px] block font-bold text-slate-400">SpO2</span>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(row);
-            });
-        }
-
-        function renderDoctorReport() {
-            const tableBody = document.getElementById('doctorReportMedTable');
-            if (!tableBody) return;
-
-            tableBody.innerHTML = '';
-            activeMedsList.forEach(m => {
+            vitalsHistory.forEach((rec, idx) => {
                 const tr = document.createElement('tr');
+                tr.className = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+
+                const bpCat = getBPCategory(rec.systolic, rec.diastolic);
+
                 tr.innerHTML = `
-                    <td class="p-2 border font-bold text-slate-900">${m.name}</td>
-                    <td class="p-2 border uppercase text-[11px] font-bold text-slate-600">${m.slot} (${m.time || 'As Directed'})</td>
-                    <td class="p-2 border text-slate-600">${m.detail}</td>
-                    <td class="p-2 border text-slate-500 font-semibold">${m.doctor}</td>
+                    <td class="p-3">
+                        <div class="font-extrabold text-slate-900">${escapeHtml(rec.dateStr)}</div>
+                        <div class="text-xs text-slate-500">${escapeHtml(rec.timeStr)}</div>
+                    </td>
+                    <td class="p-3 font-extrabold text-blue-900 text-base">
+                        ${rec.systolic}/${rec.diastolic} <span class="text-xs text-slate-500 font-normal">mmHg</span>
+                    </td>
+                    <td class="p-3 font-extrabold ${rec.spo2 < 95 ? 'text-rose-600' : 'text-emerald-700'}">
+                        ${rec.spo2}%
+                    </td>
+                    <td class="p-3 font-extrabold text-slate-800">
+                        ${rec.pulse} <span class="text-xs text-slate-500 font-normal">bpm</span>
+                    </td>
+                    <td class="p-3">
+                        <span class="text-[11px] font-extrabold px-2 py-0.5 rounded ${bpCat.color}">
+                            ${bpCat.label}
+                        </span>
+                    </td>
+                    <td class="p-3 text-xs font-medium text-slate-600 max-w-xs truncate">
+                        ${escapeHtml(rec.notes || '-')}
+                    </td>
+                    <td class="p-3 text-center">
+                        <button class="delete-vital-btn text-rose-500 hover:text-rose-700 text-xs px-2 py-1 rounded border border-rose-200" data-id="${rec.id}">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
                 `;
-                tableBody.appendChild(tr);
+                vitalsHistoryTableBody.appendChild(tr);
+            });
+
+            // Delete buttons
+            document.querySelectorAll('.delete-vital-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const recId = e.currentTarget.getAttribute('data-id');
+                    vitalsHistory = vitalsHistory.filter(r => r.id !== recId);
+                    
+                    const cleanRoom = activeRoomCode.trim().toUpperCase();
+                    const vitalsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'vitals_logs', `${cleanRoom}_vitals`);
+                    try {
+                        await setDoc(vitalsDocRef, { roomCode: cleanRoom, records: vitalsHistory });
+                        showToast("Entry deleted");
+                    } catch(err) {
+                        renderVitalsHistory();
+                    }
+                });
             });
         }
 
-        function exportToCSV() {
-            if (!vitalsLogs || vitalsLogs.length === 0) {
-                showToast("No vitals data available to export.");
+        // Update the dashboard summary card
+        function updateLatestVitalsCard() {
+            if (vitalsHistory && vitalsHistory.length > 0) {
+                const latest = vitalsHistory[0];
+                document.getElementById('latestReadingTime').innerText = `${latest.dateStr} at ${latest.timeStr}`;
+                document.getElementById('latestBPVal').innerText = `${latest.systolic}/${latest.diastolic}`;
+                document.getElementById('latestSpO2Val').innerText = `${latest.spo2}%`;
+                document.getElementById('latestPulseVal').innerText = `${latest.pulse} BPM`;
+            } else {
+                document.getElementById('latestReadingTime').innerText = "No readings logged yet";
+                document.getElementById('latestBPVal').innerText = "--/--";
+                document.getElementById('latestSpO2Val').innerText = "--%";
+                document.getElementById('latestPulseVal').innerText = "-- BPM";
+            }
+        }
+
+        // Export history to CSV file for doctor visit
+        document.getElementById('exportCsvBtn').addEventListener('click', () => {
+            if (!vitalsHistory || vitalsHistory.length === 0) {
+                showToast("No vitals data to export!");
                 return;
             }
 
-            let csv = "Date & Time,Slot,Systolic BP (mmHg),Diastolic BP (mmHg),Pulse (BPM),Oxygen SpO2 (%),Notes\n";
-            vitalsLogs.forEach(r => {
-                csv += `"${r.dateStr}","${r.slot}",${r.sys},${r.dia},${r.pulse},${r.spo2},"${r.notes || ''}"\n`;
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Patient Name: Mr. Manu Kumar Jha\n";
+            csvContent += "Room Code: " + activeRoomCode + "\n\n";
+            csvContent += "Date,Time,Systolic BP (mmHg),Diastolic BP (mmHg),Oxygen SpO2 (%),Pulse Rate (BPM),Notes\n";
+
+            vitalsHistory.forEach(r => {
+                const row = [
+                    `"${r.dateStr}"`,
+                    `"${r.timeStr}"`,
+                    r.systolic,
+                    r.diastolic,
+                    r.spo2,
+                    r.pulse,
+                    `"${(r.notes || '').replace(/"/g, '""')}"`
+                ].join(",");
+                csvContent += row + "\n";
             });
 
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.setAttribute('download', `CareSync_Vitals_Mr_Manu_Jha_${selectedDate}.csv`);
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `CareSync_Mr_Jha_Vitals_${activeRoomCode}_${selectedDateStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Exported CSV file for doctor visit!");
+        });
+
+        const tabMeds = document.getElementById('tabMeds');
+        const tabVitals = document.getElementById('tabVitals');
+        const tabHistory = document.getElementById('tabHistory');
+
+        const sectionMeds = document.getElementById('sectionMeds');
+        const sectionVitals = document.getElementById('sectionVitals');
+        const sectionHistory = document.getElementById('sectionHistory');
+
+        function switchTab(activeTab, showSection) {
+            [tabMeds, tabVitals, tabHistory].forEach(t => t.classList.remove('active'));
+            [sectionMeds, sectionVitals, sectionHistory].forEach(s => s.classList.add('hidden'));
+
+            activeTab.classList.add('active');
+            showSection.classList.remove('hidden');
         }
 
-        // Date selector helpers
-        function changeDate(days) {
-            const current = new Date(selectedDate);
-            current.setDate(current.getDate() + days);
-            selectedDate = current.toISOString().split('T')[0];
-            updateDatePickers();
-            renderMedsUI();
-        }
+        tabMeds.addEventListener('click', () => switchTab(tabMeds, sectionMeds));
+        tabVitals.addEventListener('click', () => switchTab(tabVitals, sectionVitals));
+        tabHistory.addEventListener('click', () => switchTab(tabHistory, sectionHistory));
 
-        function onDateInputChange(val) {
-            if (val) {
-                selectedDate = val;
-                updateDatePickers();
-                renderMedsUI();
-            }
-        }
-
-        function updateDatePickers() {
-            document.getElementById('selectedDateInput').value = selectedDate;
-            const todayStr = new Date().toISOString().split('T')[0];
-            const label = document.getElementById('selectedDayLabel');
-            if (label) {
-                if (selectedDate === todayStr) label.textContent = "Today";
-                else label.textContent = selectedDate;
-            }
-        }
-
-        // Navigation Tabs Controller
-        function switchTab(tabName) {
-            ['meds', 'vitals', 'trends', 'report', 'settings'].forEach(t => {
-                const section = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`);
-                const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
-                
-                if (t === tabName) {
-                    section.classList.remove('hidden');
-                    btn.className = "py-2 px-1 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 bg-white text-brand-900 shadow-sm transition";
-                } else {
-                    section.classList.add('hidden');
-                    btn.className = "py-2 px-1 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 text-slate-600 hover:text-brand-900 transition";
-                }
+        // Filter button handlers
+        document.querySelectorAll('.med-filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.med-filter-btn').forEach(b => {
+                    b.className = "med-filter-btn px-3 py-1.5 rounded-lg font-bold text-xs bg-slate-200 text-slate-700 hover:bg-slate-300";
+                });
+                e.target.className = "med-filter-btn px-3 py-1.5 rounded-lg font-bold text-xs bg-blue-700 text-white shadow";
+                activeFilter = e.target.getAttribute('data-filter');
+                renderMedications();
             });
+        });
 
-            if (tabName === 'trends') {
-                setTimeout(renderChart, 100);
-            } else if (tabName === 'report') {
-                renderDoctorReport();
-            }
-        }
+        joinRoomBtn.addEventListener('click', () => {
+            const newCode = roomCodeInput.value.trim().toUpperCase();
+            if (!newCode) return;
+            activeRoomCode = newCode;
+            localStorage.setItem('caresync_room', activeRoomCode);
+            showToast(`Switching to Room: ${activeRoomCode}`);
+            setupFirestoreListeners();
+        });
 
-        // Modal Helpers
-        function openRoomModal() { document.getElementById('roomModal').classList.remove('hidden'); }
-        function closeRoomModal() { document.getElementById('roomModal').classList.add('hidden'); }
-        function openAddMedModal() { document.getElementById('addMedModal').classList.remove('hidden'); }
-        function closeAddMedModal() { document.getElementById('addMedModal').classList.add('hidden'); }
+        copyRoomBtn.addEventListener('click', () => {
+            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoomCode)}`;
+            // Fallback copy execCommand for iframe compatibility
+            const tempInput = document.createElement('input');
+            tempInput.value = shareUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast("Copied family room link to clipboard!");
+        });
 
-        function saveRoomCodeFromModal() {
-            const code = document.getElementById('modalRoomInput').value.trim().toUpperCase();
-            if (code) {
-                roomCode = code;
-                document.getElementById('headerRoomCode').textContent = code;
-                document.getElementById('settingsRoomInput').value = code;
-                saveToLocalStorage();
-                closeRoomModal();
-                initGunSync();
-                showToast(`Connected to room: ${code}`);
-            }
-        }
+        // Date selection change
+        medDateInput.value = selectedDateStr;
+        medDateInput.addEventListener('change', (e) => {
+            selectedDateStr = e.target.value;
+            setupFirestoreListeners();
+        });
 
-        function updateRoomCodeFromSettings() {
-            const code = document.getElementById('settingsRoomInput').value.trim().toUpperCase();
-            if (code) {
-                roomCode = code;
-                document.getElementById('headerRoomCode').textContent = code;
-                document.getElementById('modalRoomInput').value = code;
-                saveToLocalStorage();
-                initGunSync();
-                showToast(`Sync Room set to: ${code}`);
-            }
-        }
+        const addMedModal = document.getElementById('addMedModal');
+        const openAddMedModalBtn = document.getElementById('openAddMedModalBtn');
+        const closeAddMedModalBtn = document.getElementById('closeAddMedModalBtn');
+        const cancelAddMedBtn = document.getElementById('cancelAddMedBtn');
+        const addMedForm = document.getElementById('addMedForm');
 
-        function handleCustomMedSubmit(e) {
+        openAddMedModalBtn.addEventListener('click', () => addMedModal.classList.remove('hidden'));
+        const closeModal = () => addMedModal.classList.add('hidden');
+        closeAddMedModalBtn.addEventListener('click', closeModal);
+        cancelAddMedBtn.addEventListener('click', closeModal);
+
+        addMedForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const name = document.getElementById('customMedName').value;
-            const detail = document.getElementById('customMedDetail').value;
-            const slot = document.getElementById('customMedSlot').value;
-            const doctor = document.getElementById('customMedDoctor').value || 'Prescribed';
+            const name = document.getElementById('newMedName').value.trim();
+            const category = document.getElementById('newMedCategory').value;
+            const instructions = document.getElementById('newMedInstructions').value.trim();
+
+            const morning = document.getElementById('scheduleMorn').checked;
+            const afternoon = document.getElementById('scheduleAft').checked;
+            const night = document.getElementById('scheduleNight').checked;
+            const sos = document.getElementById('scheduleSOS').checked;
+
+            if (!morning && !afternoon && !night && !sos) {
+                alert("Please select at least one dosing time");
+                return;
+            }
 
             const newMed = {
                 id: 'custom_' + Date.now(),
-                slot,
-                time: slot.toUpperCase(),
                 name,
-                detail,
-                doctor
+                category,
+                schedule: { morning, afternoon, night, sos },
+                instructions
             };
 
-            customMeds.push(newMed);
-            updateActiveMedsList();
-            publishToGun();
-            closeAddMedModal();
-            renderMedsUI();
-            showToast("Custom prescription added!");
-        }
-
-        function downloadBackupJSON() {
-            const data = { roomCode, medLogs, vitalsLogs, customMeds };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `CareSync_Backup_${selectedDate}.json`;
-            a.click();
-        }
-
-        function resetAppToDefault() {
-            if (confirm("Reset local cache? Your saved room code and logs will be restored to defaults.")) {
-                localStorage.clear();
-                location.reload();
-            }
-        }
-
-        function showToast(msg) {
-            const container = document.getElementById('toastContainer');
-            if (!container) return;
-
-            const toast = document.createElement('div');
-            toast.className = "bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold flex items-center space-x-2 pointer-events-auto transition-all";
-            toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i><span>${msg}</span>`;
+            medicationsList.push(newMed);
+            localStorage.setItem('caresync_meds_master', JSON.stringify(medicationsList));
             
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            await saveMedicationStatus();
+            addMedForm.reset();
+            closeModal();
+            renderMedications();
+            showToast("New medication added!");
+        });
+
+        // Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
         }
 
-        function renderUI() {
-            document.getElementById('headerRoomCode').textContent = roomCode;
-            document.getElementById('settingsRoomInput').value = roomCode;
-            document.getElementById('modalRoomInput').value = roomCode;
-            updateDatePickers();
-            updateActiveMedsList();
-            renderMedsUI();
-            renderVitalsUI();
+        // HTML Sanitizer to prevent XSS
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
 
-        // Initialize App on DOM Load
+        // Detect current time of day for vitals logger
+        const hour = new Date().getHours();
+        const timeOfDayBadge = document.getElementById('timeOfDayBadge');
+        if (hour >= 16) {
+            timeOfDayBadge.innerHTML = `<i class="fa-solid fa-moon"></i> Evening Session`;
+            timeOfDayBadge.className = `bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1`;
+        }
+
+        // Initialize Application
         window.addEventListener('DOMContentLoaded', () => {
-            updateActiveMedsList();
-            renderUI();
-            initGunSync();
+            roomCodeInput.value = activeRoomCode;
+            authenticateUser();
         });
     </script>
 </body>
